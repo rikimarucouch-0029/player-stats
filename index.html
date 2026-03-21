@@ -535,7 +535,22 @@ td.col-name.editing input { text-align: left; padding-left: 8px; }
 .rank-info { flex: 1; }
 .rank-name { font-size: .85rem; font-weight: 700; color: #fff; }
 .rank-sub { font-size: .68rem; color: rgba(255,255,255,.5); }
-.rank-val { font-size: 1rem; font-weight: 800; color: #fff; }
+.rank-val { font-size: 1rem; font-weight: 800; color: #fff; min-width: 45px; text-align: right; }
+.rank-bar-wrap { flex: 1; height: 22px; background: rgba(255,255,255,.06); border-radius: 4px; position: relative; overflow: visible; }
+.rank-bar { height: 100%; border-radius: 4px; transition: width .3s; }
+.rank-bar.above { background: linear-gradient(90deg, #4caf50, #66bb6a); }
+.rank-bar.below { background: linear-gradient(90deg, #e94560, #ef5350); }
+.rank-bar.equal { background: rgba(255,255,255,.2); }
+.rank-avg-line {
+  position: absolute; top: -4px; bottom: -4px; width: 2px;
+  background: #ffd700; z-index: 5;
+}
+.rank-avg-label {
+  position: absolute; top: -16px; font-size: .55rem; color: #ffd700;
+  white-space: nowrap; transform: translateX(-50%);
+}
+.rank-bottom { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+.rank-bar-row { display: flex; align-items: center; gap: 8px; }
 
 /* ========== 選手詳細モーダル ========== */
 .player-modal-overlay {
@@ -1211,15 +1226,8 @@ function renderTable(tt){
     cols.forEach(col=>{
       const td=document.createElement('td');
       if(col.css)td.classList.add(col.css);
-      if(col.type==='calc'){
-        td.classList.add('col-calc');td.textContent=fmtCalc(col.key,stats[col.key]);
-        if(total){const bg=getCompareColor(col.key,stats[col.key],teamAvg[col.key],tt);if(bg)td.style.background=bg;}
-      }
-      else if(total){
-        td.style.color='#555';td.textContent=col.type==='text'?(row[col.key]||''):(row[col.key]||0);
-        if(col.key==='name'){td.style.cursor='pointer';td.style.textDecoration='underline';td.onclick=()=>openPlayerModal(row.name);}
-        else if(col.type==='num'){const bg=getCompareColor(col.key,row[col.key]||0,teamAvg[col.key],tt);if(bg)td.style.background=bg;}
-      }
+      if(col.type==='calc'){td.classList.add('col-calc');td.textContent=fmtCalc(col.key,stats[col.key]);}
+      else if(total){td.style.color='#555';td.textContent=col.type==='text'?(row[col.key]||''):(row[col.key]||0);if(col.key==='name'){td.style.cursor='pointer';td.style.textDecoration='underline';td.onclick=()=>openPlayerModal(row.name);}}
       else{td.classList.add('editable');td.dataset.rowId=row.id;td.dataset.colKey=col.key;td.dataset.tableType=tt;td.textContent=col.type==='text'?(row[col.key]||''):(row[col.key]||0);td.onclick=()=>startEdit(td,tt,row.id,col);}
       tr.appendChild(td);
     });
@@ -1386,14 +1394,29 @@ function renderRanking(){
   items.sort((a,b)=>cat.lower?(a.val-b.val):(b.val-a.val));
   const list=document.getElementById('rankList');
   if(!items.length){list.innerHTML='<div style="color:rgba(255,255,255,.4);text-align:center;padding:40px">データなし</div>';return;}
+  // チーム平均計算
+  const avgVal=items.length?items.reduce((s,x)=>s+x.val,0)/items.length:0;
+  const maxVal=Math.max(...items.map(x=>x.val),avgVal)*1.15||1;
+  const avgPct=(avgVal/maxVal)*100;
+  const isLower=cat.lower||false;
   let html='';
   items.forEach((it,i)=>{
     const pos=i+1;
     const pcls=pos===1?'gold':pos===2?'silver':pos===3?'bronze':'';
+    const pct=Math.max(0,Math.min(100,(it.val/maxVal)*100));
+    const barCls=isLower?(it.val<avgVal?'above':it.val>avgVal?'below':'equal'):(it.val>avgVal?'above':it.val<avgVal?'below':'equal');
     html+=`<div class="rank-item" onclick="openPlayerModal('${it.name.replace(/'/g,"\\'")}')">
       <div class="rank-pos ${pcls}">${pos}</div>
-      <div class="rank-info"><div class="rank-name">${it.name}</div><div class="rank-sub">#${it.number}</div></div>
-      <div class="rank-val">${cat.fmt(it.val)}</div>
+      <div class="rank-bottom">
+        <div class="rank-info"><div class="rank-name">${it.name}</div><div class="rank-sub">#${it.number}</div></div>
+        <div class="rank-bar-row">
+          <div class="rank-bar-wrap">
+            <div class="rank-bar ${barCls}" style="width:${pct}%"></div>
+            <div class="rank-avg-line" style="left:${avgPct}%"><span class="rank-avg-label">平均</span></div>
+          </div>
+          <div class="rank-val">${cat.fmt(it.val)}</div>
+        </div>
+      </div>
     </div>`;
   });
   list.innerHTML=html;
