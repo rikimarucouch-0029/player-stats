@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>選手成績管理</title>
+<style>
+/* ========== リセット・基本設定 ========== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Segoe UI", sans-serif;
+  background: #1a1a2e;
+  color: #333;
+}
+
+/* ========== 全画面レイアウト ========== */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* ========== ツールバー ========== */
+.toolbar-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #16213e;
+  flex-shrink: 0;
+}
+.toolbar-top .spacer { flex: 1; }
+.page-title {
+  font-size: .9rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: .5px;
+}
+.tb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px 12px;
+  border: 1.5px solid rgba(255,255,255,.2);
+  border-radius: 6px;
+  background: rgba(255,255,255,.08);
+  font-size: .75rem;
+  font-weight: 600;
+  color: rgba(255,255,255,.85);
+  cursor: pointer;
+  transition: all .12s;
+  min-height: 36px;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  text-decoration: none;
+  font-family: inherit;
+}
+.tb:active { transform: scale(.95); opacity: .8; }
+.tb:hover { background: rgba(255,255,255,.15); }
+
+/* ========== メインタブ ========== */
+.main-tabs {
+  display: flex;
+  background: #16213e;
+  border-top: 1px solid rgba(255,255,255,.08);
+  flex-shrink: 0;
+}
+.main-tab {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,.4);
+  font-size: .82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+  border-bottom: 3px solid transparent;
+  font-family: inherit;
+}
+.main-tab.active {
+  color: #fff;
+  border-bottom-color: #e94560;
+  background: rgba(255,255,255,.04);
+}
+.main-tab:hover:not(.active) { color: rgba(255,255,255,.65); }
+
+/* ========== リーグバー ========== */
+.league-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  background: #0f3460;
+  flex-shrink: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.league-btn {
+  padding: 5px 14px;
+  border: 1.5px solid rgba(255,255,255,.15);
+  border-radius: 16px;
+  background: transparent;
+  color: rgba(255,255,255,.5);
+  font-size: .73rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+  font-family: inherit;
+}
+.league-btn:hover { color: rgba(255,255,255,.8); background: rgba(255,255,255,.06); }
+.league-btn.active { color: #fff; background: #e94560; border-color: #e94560; }
+.league-btn.total { border-style: dashed; }
+.league-btn.total.active { background: #533483; border-color: #7c4dff; border-style: solid; }
+.league-add-btn {
+  padding: 4px 10px;
+  border: 1.5px dashed rgba(255,255,255,.25);
+  border-radius: 16px;
+  background: transparent;
+  color: rgba(255,255,255,.4);
+  font-size: .75rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+.league-add-btn:hover { color: rgba(255,255,255,.7); }
+
+/* ========== コンテンツエリア ========== */
+.content-area {
+  flex: 1;
+  overflow: hidden;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+}
+.page { display: none; }
+.page.active { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+.page#pageRoster.active { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+
+/* ========== 名簿カード ========== */
+.roster-tournament {
+  margin-bottom: 16px;
+}
+.roster-tournament-title {
+  font-size: .85rem;
+  font-weight: 700;
+  color: #fff;
+  padding: 8px 12px;
+  background: rgba(255,255,255,.08);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+.roster-team {
+  margin-bottom: 12px;
+}
+.roster-team-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  margin-bottom: 6px;
+}
+.team-color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.roster-team-name {
+  font-size: .78rem;
+  font-weight: 600;
+  color: rgba(255,255,255,.8);
+}
+.roster-team-count {
+  font-size: .65rem;
+  color: rgba(255,255,255,.4);
+}
+.player-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 6px;
+  padding: 0 4px;
+}
+.player-card {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: rgba(255,255,255,.08);
+  border-radius: 6px;
+  cursor: default;
+  transition: all .1s;
+  border-left: 3px solid #555;
+  color: #fff;
+}
+.player-card.grade-3 { border-left-color: #e94560; background: rgba(233,69,96,.22); }
+.player-card.grade-2 { border-left-color: #2196f3; background: rgba(33,150,243,.22); }
+.player-card.grade-1 { border-left-color: #4caf50; background: rgba(76,175,80,.22); }
+.player-card.grade-captain { border-left-color: #ff9800; background: rgba(255,152,0,.22); }
+.grade-legend {
+  display: flex;
+  gap: 12px;
+  padding: 6px 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.grade-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: .65rem;
+  color: rgba(255,255,255,.6);
+}
+.grade-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+.player-card:hover { background: rgba(255,255,255,.18); transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,.3); }
+.player-num {
+  font-size: .9rem;
+  font-weight: 800;
+  color: #fff;
+  min-width: 22px;
+  text-align: center;
+}
+.player-name {
+  font-size: .68rem;
+  font-weight: 600;
+  color: rgba(255,255,255,.9);
+  line-height: 1.2;
+}
+.staff-section {
+  margin-top: 4px;
+  padding: 0 4px;
+}
+.staff-cards {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.staff-card {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: rgba(255,255,255,.15);
+  border-radius: 4px;
+  font-size: .63rem;
+  color: rgba(255,255,255,.6);
+}
+.staff-num { font-weight: 700; }
+
+/* ========== テーブルアクション ========== */
+.table-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+/* ========== テーブル ========== */
+.table-scroll {
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 8px;
+  box-shadow: 0 2px 16px rgba(0,0,0,.35);
+  flex: 1;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  min-width: 900px;
+  font-size: .8rem;
+}
+thead th {
+  background: #16213e;
+  color: rgba(255,255,255,.9);
+  padding: 8px 4px;
+  font-size: .7rem;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  white-space: nowrap;
+  border-right: 1px solid rgba(255,255,255,.1);
+  user-select: none;
+}
+thead th:last-child { border-right: none; }
+tbody td {
+  padding: 2px 4px;
+  border-bottom: 1px solid #e8e8e8;
+  border-right: 1px solid #f0f0f0;
+  text-align: center;
+  min-width: 42px;
+  height: 36px;
+}
+tbody td:last-child { border-right: none; }
+tbody tr:hover { filter: brightness(1.05); }
+tbody tr.row-grade-3 { background: rgba(233,69,96,.12); }
+tbody tr.row-grade-3:nth-child(even) { background: rgba(233,69,96,.18); }
+tbody tr.row-grade-2 { background: rgba(33,150,243,.12); }
+tbody tr.row-grade-2:nth-child(even) { background: rgba(33,150,243,.18); }
+tbody tr.row-grade-1 { background: rgba(76,175,80,.12); }
+tbody tr.row-grade-1:nth-child(even) { background: rgba(76,175,80,.18); }
+tbody tr.row-grade-captain { background: rgba(255,152,0,.12); }
+tbody tr.row-grade-captain:nth-child(even) { background: rgba(255,152,0,.18); }
+.col-name { min-width: 100px; text-align: left; padding-left: 8px !important; position: sticky; left: 0; z-index: 5; }
+thead th.col-name { z-index: 15; background: #16213e; }
+tbody td.col-name { background: #fff; }
+tbody tr.row-grade-3 td.col-name { background: #fce4e8; }
+tbody tr.row-grade-3:nth-child(even) td.col-name { background: #f9d2d8; }
+tbody tr.row-grade-2 td.col-name { background: #e0eefa; }
+tbody tr.row-grade-2:nth-child(even) td.col-name { background: #d1e6f7; }
+tbody tr.row-grade-1 td.col-name { background: #e2f3e3; }
+tbody tr.row-grade-1:nth-child(even) td.col-name { background: #d3eed4; }
+tbody tr.row-grade-captain td.col-name { background: #fef0dc; }
+tbody tr.row-grade-captain:nth-child(even) td.col-name { background: #fde6c8; }
+.col-number { min-width: 44px; }
+.col-calc { background: #eef2ff !important; font-weight: 700; color: #16213e; }
+.col-delete { width: 36px; min-width: 36px; padding: 0 !important; }
+td.editable { cursor: cell; }
+td.editable:hover { background: #fff3cd !important; }
+td.editing { padding: 0 !important; background: #fff !important; box-shadow: inset 0 0 0 2px #e94560; }
+td.editing input {
+  width: 100%;
+  height: 100%;
+  min-height: 34px;
+  border: none;
+  outline: none;
+  text-align: center;
+  font-size: .8rem;
+  font-family: inherit;
+  padding: 4px;
+  background: transparent;
+}
+td.col-name.editing input { text-align: left; padding-left: 8px; }
+.delete-btn {
+  background: none;
+  border: none;
+  color: #ccc;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all .12s;
+  font-family: inherit;
+  line-height: 1;
+}
+.delete-btn:hover { background: #ffebee; color: #c62828; }
+
+/* ========== 非表示 ========== */
+.hidden { display: none !important; }
+
+/* ========== ダイアログ・オーバーレイ ========== */
+.overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+}
+.overlay.show { display: flex; }
+.dialog {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  width: 320px;
+  max-width: 90vw;
+  box-shadow: 0 8px 32px rgba(0,0,0,.3);
+}
+.dialog h3 { font-size: .95rem; margin-bottom: 12px; color: #16213e; }
+.dialog input[type="text"] {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1.5px solid #ccc;
+  border-radius: 6px;
+  font-size: .85rem;
+  font-family: inherit;
+  outline: none;
+}
+.dialog input:focus { border-color: #e94560; }
+.dialog-actions { display: flex; gap: 8px; margin-top: 14px; justify-content: flex-end; }
+.dialog-btn {
+  padding: 7px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: .8rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.dialog-btn.cancel { background: #eee; color: #555; }
+.dialog-btn.ok { background: #e94560; color: #fff; }
+.dialog-btn.danger { background: #c62828; color: #fff; }
+
+/* ========== 選手ピッカー ========== */
+.picker-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.6);
+  z-index: 200;
+  flex-direction: column;
+}
+.picker-overlay.show { display: flex; }
+.picker-panel {
+  background: #1a1a2e;
+  margin: auto;
+  width: 95vw;
+  max-width: 600px;
+  max-height: 85vh;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 8px 40px rgba(0,0,0,.5);
+}
+.picker-header {
+  padding: 12px 14px;
+  background: #16213e;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.picker-header h3 { font-size: .85rem; color: #fff; flex: 1; }
+.picker-close {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,.6);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  font-family: inherit;
+}
+.picker-search {
+  margin: 8px 12px;
+  padding: 8px 12px;
+  border: 1.5px solid rgba(255,255,255,.15);
+  border-radius: 8px;
+  background: rgba(255,255,255,.06);
+  color: #fff;
+  font-size: .82rem;
+  font-family: inherit;
+  outline: none;
+  flex-shrink: 0;
+}
+.picker-search::placeholder { color: rgba(255,255,255,.35); }
+.picker-search:focus { border-color: #e94560; }
+.picker-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px 14px;
+}
+.picker-team-section { margin-bottom: 10px; }
+.picker-team-label {
+  font-size: .7rem;
+  font-weight: 600;
+  color: rgba(255,255,255,.5);
+  padding: 2px 4px;
+  margin-bottom: 4px;
+}
+.picker-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 5px;
+}
+.picker-card {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 8px;
+  background: rgba(255,255,255,.08);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all .1s;
+  border-left: 3px solid #555;
+  color: #fff;
+}
+.picker-card:hover { background: rgba(255,255,255,.18); transform: scale(1.03); box-shadow: 0 2px 8px rgba(0,0,0,.4); }
+.picker-card.already-added { opacity: .3; pointer-events: none; }
+.picker-card.grade-3 { border-left-color: #e94560; background: rgba(233,69,96,.22); }
+.picker-card.grade-2 { border-left-color: #2196f3; background: rgba(33,150,243,.22); }
+.picker-card.grade-1 { border-left-color: #4caf50; background: rgba(76,175,80,.22); }
+.picker-card.grade-captain { border-left-color: #ff9800; background: rgba(255,152,0,.22); }
+.picker-card .player-num { font-size: .85rem; color: #fff; }
+.picker-card .player-name { font-size: .68rem; color: rgba(255,255,255,.9); }
+.picker-manual {
+  margin-top: 10px;
+  text-align: center;
+}
+.picker-manual button {
+  padding: 8px 20px;
+  border: 1.5px dashed rgba(255,255,255,.3);
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255,255,255,.5);
+  font-size: .75rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+.picker-manual button:hover { color: rgba(255,255,255,.8); border-color: rgba(255,255,255,.5); }
+
+/* ========== モバイル対応 ========== */
+@media (max-width: 600px) {
+  .toolbar-top { padding: 6px 8px; }
+  .page-title { font-size: .8rem; }
+  .player-cards { grid-template-columns: repeat(auto-fill, minmax(95px, 1fr)); }
+  table { min-width: 780px; font-size: .72rem; }
+  thead th { font-size: .65rem; padding: 6px 2px; }
+  tbody td { min-width: 36px; height: 32px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="toolbar-top">
+    <span class="page-title">選手成績管理</span>
+    <div class="spacer"></div>
+    <button class="tb" onclick="loadFromFile()" title="INITIAL_STATSのデータを読み込む">📂 ファイル読込</button>
+  </div>
+
+  <div class="main-tabs">
+    <button class="main-tab active" onclick="switchPage('roster')">名簿</button>
+    <button class="main-tab" onclick="switchPage('batting')">打撃成績</button>
+    <button class="main-tab" onclick="switchPage('pitching')">投手成績</button>
+    <button class="main-tab" onclick="switchPage('fielding')">守備成績</button>
+  </div>
+
+  <!-- リーグバー（成績ページのみ） -->
+  <div class="league-bar hidden" id="leagueBar"></div>
+
+  <div class="content-area">
+    <!-- 名簿ページ -->
+    <div class="page active" id="pageRoster"></div>
+
+    <!-- 打撃成績ページ -->
+    <div class="page" id="pageBatting">
+      <div class="table-actions" id="battingActions">
+        <button class="tb" onclick="openPicker('batting')">+ 選手追加</button>
+      </div>
+      <div class="table-scroll">
+        <table><thead><tr id="battingHead"></tr></thead><tbody id="battingBody"></tbody></table>
+      </div>
+    </div>
+
+    <!-- 投手成績ページ -->
+    <div class="page" id="pagePitching">
+      <div class="table-actions" id="pitchingActions">
+        <button class="tb" onclick="openPicker('pitching')">+ 選手追加</button>
+      </div>
+      <div class="table-scroll">
+        <table><thead><tr id="pitchingHead"></tr></thead><tbody id="pitchingBody"></tbody></table>
+      </div>
+    </div>
+
+    <!-- 守備成績ページ -->
+    <div class="page" id="pageFielding">
+      <div class="table-actions" id="fieldingActions">
+        <button class="tb" onclick="openPicker('fielding')">+ 選手追加</button>
+      </div>
+      <div class="table-scroll">
+        <table><thead><tr id="fieldingHead"></tr></thead><tbody id="fieldingBody"></tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ダイアログ -->
+<div class="overlay" id="overlay" onclick="if(event.target===this)closeDialog()">
+  <div class="dialog">
+    <h3 id="dialogTitle"></h3>
+    <input type="text" id="dialogInput">
+    <div class="dialog-actions" id="dialogActions"></div>
+  </div>
+</div>
+
+<!-- 選手ピッカー -->
+<div class="picker-overlay" id="pickerOverlay" onclick="if(event.target===this)closePicker()">
+  <div class="picker-panel">
+    <div class="picker-header">
+      <h3 id="pickerTitle">選手を選択</h3>
+      <button class="picker-close" onclick="closePicker()">×</button>
+    </div>
+    <input class="picker-search" id="pickerSearch" placeholder="名前で検索..." oninput="filterPicker()">
+    <div class="picker-body" id="pickerBody"></div>
+  </div>
+</div>
+
+<script>
+// ==========================================================
+//  名簿データ（Claude Code で直接編集可能）
+// ==========================================================
+const ROSTER = [
+  {
+    tournament: '全日本少年予選＆大田区大会',
+    teams: [
+      {
+        name: '全日本少年予選', color: '#e94560',
+        staff: [{n:30,name:'細田 忠宏'},{n:29,name:'高橋 亨'},{n:28,name:'小暮 友朗'}],
+        players: [
+          {n:10,name:'永島 大雅'},{n:1,name:'後藤 駿太'},{n:2,name:'越川 颯翔'},
+          {n:3,name:'高橋 和大'},{n:4,name:'柏 結斗'},{n:5,name:'芹ヶ野 雄眞'},
+          {n:6,name:'田村 美裕'},{n:7,name:'有川 湊真'},{n:8,name:'芦名 一郎'},
+          {n:9,name:'佐伯 遥斗'},{n:11,name:'池畠 瑛士'},{n:12,name:'澤田 一輝'},
+          {n:13,name:'袴田 蓮季'},{n:14,name:'坂本 大芽'},{n:15,name:'齋藤 大輝'},
+          {n:20,name:'中里 琥珀'},{n:24,name:'吉野 琉生'},{n:26,name:'原 信太朗'},
+          {n:32,name:'西田 智貴'},{n:40,name:'渡邊 来輝'},{n:43,name:'矢澤 直大'},
+          {n:44,name:'石野 華偉'},{n:45,name:'酒巻 然'},{n:49,name:'谷川 新太'},
+          {n:50,name:'葉 展銓'},
+        ]
+      },
+      {
+        name: '大田区A', color: '#2196f3',
+        staff: [{n:30,name:'高橋 亨'},{n:29,name:'永島 正人'},{n:28,name:'芹ヶ野 碓完'}],
+        players: [
+          {n:10,name:'永島 大雅'},{n:1,name:'後藤 駿太'},{n:2,name:'越川 颯翔'},
+          {n:3,name:'高橋 和大'},{n:4,name:'柏 結斗'},{n:5,name:'芹ヶ野 雄眞'},
+          {n:6,name:'田村 美裕'},{n:7,name:'有川 湊真'},{n:8,name:'芦名 一郎'},
+          {n:9,name:'佐伯 遥斗'},{n:11,name:'池畠 瑛士'},{n:12,name:'澤田 一輝'},
+          {n:13,name:'袴田 蓮季'},{n:14,name:'坂本 大芽'},{n:15,name:'齋藤 大輝'},
+          {n:24,name:'吉野 琉生'},{n:41,name:'戸田 悠斗'},{n:49,name:'谷川 新太'},
+        ]
+      },
+      {
+        name: '大田区B', color: '#4caf50',
+        staff: [{n:30,name:'小暮 友朗'},{n:29,name:'内田 智弘'},{n:28,name:'戸田 陽介'}],
+        players: [
+          {n:10,name:'原 信太朗'},{n:19,name:'山本 悠陽'},{n:20,name:'中里 琥珀'},
+          {n:25,name:'吉野 羽琉'},{n:32,name:'西田 智貴'},{n:33,name:'小野島 颯汰'},
+          {n:35,name:'上野 遥斗'},{n:37,name:'綾部 稜大'},{n:40,name:'渡邊 来輝'},
+          {n:43,name:'矢澤 直大'},{n:44,name:'石野 華偉'},{n:45,name:'酒巻 然'},
+          {n:48,name:'島津 陽仁'},{n:50,name:'葉 展銓'},{n:52,name:'宇井 悠葵'},
+          {n:53,name:'紙谷 亜輝'},{n:54,name:'國生 陵太'},{n:58,name:'戸田 隆介'},
+          {n:61,name:'渕山 新'},{n:64,name:'柏 敦斗'},{n:66,name:'赤坂 笑太郎'},
+          {n:67,name:'川野 颯己'},{n:69,name:'山道 湊祐'},
+        ]
+      },
+      {
+        name: '大田区C', color: '#ff9800',
+        staff: [{n:30,name:'脇本 力丸'},{n:29,name:'山本 忠規'},{n:28,name:'國生 大輔'}],
+        players: [
+          {n:10,name:'加藤 航士'},{n:17,name:'村田 響'},{n:22,name:'南雲 陽向'},
+          {n:23,name:'袴田 心季'},{n:27,name:'三上 航'},{n:31,name:'中村 裕惺'},
+          {n:34,name:'王 新鋭'},{n:36,name:'秋元 悠佑'},{n:38,name:'尾上 大雅'},
+          {n:42,name:'平井 湊大'},{n:46,name:'島田 晴翔'},{n:47,name:'渡邊 悠生'},
+          {n:51,name:'西尾 歩'},{n:55,name:'淺沼 龍之介'},{n:56,name:'梅村 悠希'},
+          {n:57,name:'尾上 友紀'},{n:59,name:'仲井眞 海偉'},{n:60,name:'仲井眞 波琉'},
+          {n:62,name:'神田 橙磨'},{n:63,name:'尾崎 進太郎'},{n:65,name:'金子 新'},
+          {n:68,name:'土佐 大聖'},{n:70,name:'鹿島 鳳毅'},
+        ]
+      },
+    ]
+  },
+  {
+    tournament: '城南年間大会',
+    teams: [
+      {
+        name: '城南A', color: '#e94560',
+        staff: [{n:30,name:'高橋 亨'},{n:29,name:'永島 正人'},{n:28,name:'細田 忠宏'}],
+        players: [
+          {n:10,name:'永島 大雅'},{n:1,name:'後藤 駿太'},{n:2,name:'越川 颯翔'},
+          {n:3,name:'高橋 和大'},{n:4,name:'柏 結斗'},{n:5,name:'芹ヶ野 雄眞'},
+          {n:6,name:'田村 美裕'},{n:7,name:'有川 湊真'},{n:8,name:'芦名 一郎'},
+          {n:9,name:'佐伯 遥斗'},{n:11,name:'池畠 瑛士'},{n:12,name:'澤田 一輝'},
+          {n:13,name:'袴田 蓮季'},{n:14,name:'坂本 大芽'},{n:15,name:'齋藤 大輝'},
+        ]
+      },
+      {
+        name: '城南B', color: '#2196f3',
+        staff: [{n:30,name:'小暮 友朗'},{n:29,name:'國生 大輔'},{n:28,name:'芹ヶ野 碓完'}],
+        players: [
+          {n:10,name:'原 信太朗'},{n:20,name:'中里 琥珀'},{n:24,name:'吉野 琉生'},
+          {n:33,name:'小野島 颯汰'},{n:37,name:'綾部 稜大'},{n:39,name:'田中 千太'},
+          {n:40,name:'渡邊 来輝'},{n:43,name:'矢澤 直大'},{n:44,name:'石野 華偉'},
+          {n:45,name:'酒巻 然'},{n:49,name:'谷川 新太'},{n:50,name:'葉 展銓'},
+          {n:52,name:'宇井 悠葵'},{n:53,name:'紙谷 亜輝'},{n:54,name:'國生 陵太'},
+          {n:71,name:'添野 泰那'},{n:72,name:'金岩 航輝'},
+        ]
+      },
+      {
+        name: '城南C', color: '#4caf50',
+        staff: [{n:30,name:'脇本 力丸'},{n:29,name:'戸田 陽介'},{n:28,name:'山本 忠規'}],
+        players: [
+          {n:10,name:'西田 智貴'},{n:19,name:'山本 悠陽'},{n:21,name:'加藤 航士'},
+          {n:23,name:'袴田 心季'},{n:25,name:'吉野 羽琉'},{n:27,name:'三上 航'},
+          {n:34,name:'王 新鋭'},{n:35,name:'上野 遥斗'},{n:41,name:'戸田 悠斗'},
+          {n:42,name:'平井 湊大'},{n:47,name:'渡邊 悠生'},{n:48,name:'島津 陽仁'},
+          {n:59,name:'仲井眞 海偉'},{n:62,name:'神田 橙磨'},{n:63,name:'尾崎 進太郎'},
+          {n:64,name:'柏 敦斗'},{n:66,name:'赤坂 笑太郎'},{n:67,name:'川野 颯己'},
+        ]
+      },
+      {
+        name: '城南D', color: '#ff9800',
+        staff: [{n:30,name:'内田 智弘'},{n:29,name:'脇本 武蔵'},{n:28,name:'増山 幸二'}],
+        players: [
+          {n:10,name:'菅家 峻馬'},{n:16,name:'原田 海里'},{n:17,name:'村田 響'},
+          {n:22,name:'南雲 陽向'},{n:31,name:'中村 裕惺'},{n:36,name:'秋元 悠佑'},
+          {n:38,name:'尾上 大雅'},{n:46,name:'島田 晴翔'},{n:51,name:'西尾 歩'},
+          {n:55,name:'淺沼 龍之介'},{n:56,name:'梅村 悠希'},{n:57,name:'尾上 友紀'},
+          {n:58,name:'戸田 隆介'},{n:60,name:'仲井眞 波琉'},{n:61,name:'渕山 新'},
+          {n:65,name:'金子 新'},{n:68,name:'土佐 大聖'},{n:70,name:'鹿島 鳳毅'},
+          {n:73,name:'雨下 遥'},
+        ]
+      },
+      {
+        name: '城南E', color: '#00bcd4',
+        staff: [{n:30,name:'脇本 力丸'},{n:29,name:'脇本 武蔵'},{n:28,name:'小暮 友朗'}],
+        players: [
+          {n:10,name:'戸田 隆介'},{n:55,name:'淺沼 龍之介'},{n:59,name:'仲井眞 海偉'},
+          {n:63,name:'尾崎 進太郎'},{n:67,name:'川野 颯己'},{n:68,name:'土佐 大聖'},
+          {n:70,name:'鹿島 鳳毅'},{n:72,name:'金岩 航輝'},{n:73,name:'雨下 遥'},
+          {n:74,name:'島田 樹'},{n:76,name:'今野 咲陽'},
+        ]
+      },
+      {
+        name: '城南F', color: '#9c27b0',
+        staff: [],
+        players: [
+          {n:10,name:'神田 橙磨'},{n:56,name:'梅村 悠希'},{n:57,name:'尾上 友紀'},
+          {n:60,name:'仲井眞 波琉'},{n:61,name:'渕山 新'},{n:64,name:'柏 敦斗'},
+          {n:65,name:'金子 新'},{n:66,name:'赤坂 笑太郎'},{n:71,name:'添野 泰那'},
+          {n:75,name:'島田 秀一'},{n:77,name:'古川 眞稀'},
+        ]
+      },
+    ]
+  },
+];
+
+// ==========================================================
+//  成績データ（Claude Code で直接編集可能）
+//  変更後はブラウザの「📂 ファイル読込」ボタンで反映。
+//  ブラウザ上での手入力も引き続き可能。
+//
+//  打撃キー: name, number, ab(打数), h(安打), h2b(二塁打), h3b(三塁打),
+//            hr(本塁打), rbi(打点), bb(四球), hbp(死球), so(三振),
+//            sb(盗塁), sac(犠打), sf(犠飛)
+//  投手キー: name, number, g(登板), w(勝), l(負), sv(SV),
+//            ip(投球回 例:6.2=6⅔), ha(被安打), hra(被本), bba(与四球),
+//            k(奪三振), er(自責点)
+// ==========================================================
+const INITIAL_STATS = {
+  '全日本少年予選': {
+    batting: [
+      { name:'芦名 一郎',   number:'1',  ab:3, h:2, h2b:0, h3b:0, hr:0, rbi:2, bb:0, hbp:0, so:0, sb:0, sac:0, sf:0 },
+      { name:'佐伯 遥斗',   number:'2',  ab:3, h:0, h2b:0, h3b:0, hr:0, rbi:0, bb:0, hbp:0, so:1, sb:1, sac:0, sf:0 },
+      { name:'有川 湊真',   number:'3',  ab:3, h:0, h2b:0, h3b:0, hr:0, rbi:0, bb:0, hbp:0, so:2, sb:0, sac:0, sf:0 },
+      { name:'永島 大雅',   number:'4',  ab:2, h:0, h2b:0, h3b:0, hr:0, rbi:0, bb:0, hbp:1, so:2, sb:0, sac:0, sf:0 },
+      { name:'高橋 和大',   number:'5',  ab:2, h:0, h2b:0, h3b:0, hr:0, rbi:0, bb:1, hbp:0, so:0, sb:0, sac:0, sf:0 },
+      { name:'芹ヶ野 雄眞', number:'6',  ab:2, h:0, h2b:0, h3b:0, hr:0, rbi:1, bb:1, hbp:0, so:1, sb:0, sac:0, sf:0 },
+      { name:'田村 美裕',   number:'7',  ab:2, h:0, h2b:0, h3b:0, hr:0, rbi:1, bb:1, hbp:0, so:1, sb:0, sac:0, sf:0 },
+      { name:'袴田 蓮季',   number:'13', ab:1, h:0, h2b:0, h3b:0, hr:0, rbi:1, bb:0, hbp:1, so:1, sb:0, sac:0, sf:0 },
+      { name:'柏 結斗',     number:'9',  ab:2, h:0, h2b:0, h3b:0, hr:0, rbi:1, bb:1, hbp:0, so:2, sb:0, sac:0, sf:0 },
+      { name:'越川 颯翔',   number:'2',  ab:1, h:0, h2b:0, h3b:0, hr:0, rbi:0, bb:0, hbp:0, so:1, sb:0, sac:0, sf:0 },
+    ],
+    pitching: [
+      { name:'後藤 駿太',   number:'10', g:1, w:1, l:0, sv:0, ip:4.0, np:59, ha:2, hra:0, bba:0, k:3, er:1 },
+      { name:'渡邊 来輝',   number:'40', g:1, w:0, l:0, sv:0, ip:0.2, np:21, ha:2, hra:0, bba:2, k:0, er:2 },
+      { name:'酒巻 然',     number:'45', g:1, w:0, l:0, sv:0, ip:0.1, np:7,  ha:0, hra:0, bba:1, k:0, er:0 },
+      { name:'池畠 瑛士',   number:'11', g:1, w:0, l:0, sv:0, ip:0.0, np:11, ha:0, hra:0, bba:2, k:0, er:0 },
+      { name:'中里 琥珀',   number:'20', g:1, w:0, l:0, sv:0, ip:1.0, np:12, ha:0, hra:0, bba:0, k:1, er:0 },
+    ],
+    fielding: [
+      { name:'芹ヶ野 雄眞', number:'6', e:1 },
+    ],
+  },
+  '城南年間大会': {
+    batting: [
+      { name:'佐伯 遥斗',   number:'9',  ab:2, h:0, h2b:0, h3b:0, hr:0, rbi:0, bb:2, hbp:0, so:0, sb:0, sac:0, sf:0 },
+      { name:'田村 美裕',   number:'6',  ab:3, h:0, h2b:0, h3b:0, hr:0, rbi:0, bb:0, hbp:1, so:0, sb:2, sac:0, sf:0 },
+      { name:'芦名 一郎',   number:'8',  ab:2, h:0, h2b:0, h3b:0, hr:0, rbi:0, bb:0, hbp:0, so:0, sb:0, sac:0, sf:0 },
+      { name:'有川 湊真',   number:'7',  ab:1, h:0, h2b:0, h3b:0, hr:0, rbi:0, bb:0, hbp:1, so:0, sb:0, sac:0, sf:0 },
+      { name:'永島 大雅',   number:'10', ab:3, h:1, h2b:1, h3b:0, hr:0, rbi:0, bb:1, hbp:0, so:0, sb:2, sac:0, sf:0 },
+      { name:'芹ヶ野 雄眞', number:'5',  ab:3, h:0, h2b:0, h3b:0, hr:0, rbi:0, bb:0, hbp:0, so:0, sb:0, sac:0, sf:0 },
+      { name:'高橋 和大',   number:'3',  ab:1, h:0, h2b:0, h3b:0, hr:0, rbi:1, bb:2, hbp:0, so:0, sb:0, sac:0, sf:0 },
+      { name:'柏 結斗',     number:'4',  ab:3, h:0, h2b:0, h3b:0, hr:0, rbi:0, bb:0, hbp:0, so:0, sb:0, sac:0, sf:0 },
+      { name:'越川 颯翔',   number:'2',  ab:2, h:0, h2b:0, h3b:0, hr:0, rbi:0, bb:1, hbp:0, so:0, sb:1, sac:0, sf:0 },
+      { name:'後藤 駿太',   number:'1',  ab:2, h:0, h2b:0, h3b:0, hr:0, rbi:0, bb:0, hbp:0, so:0, sb:0, sac:0, sf:0 },
+      { name:'池畠 瑛士',   number:'11', ab:1, h:0, h2b:0, h3b:0, hr:0, rbi:0, bb:0, hbp:0, so:1, sb:0, sac:0, sf:0 },
+    ],
+    pitching: [
+      { name:'後藤 駿太',   number:'1',  g:1, w:0, l:1, sv:0, ip:5.0, np:80, ha:3, hra:0, bba:2, k:5, er:1 },
+      { name:'池畠 瑛士',   number:'11', g:1, w:0, l:0, sv:0, ip:2.0, np:24, ha:1, hra:0, bba:0, k:1, er:0 },
+    ],
+  },
+  '城南一年リーグ': {
+    batting: [
+      { name:'淺沼 龍之介', number:'55', ab:2, h:1, h2b:0, h3b:0, hr:0, rbi:1, bb:0, hbp:0, so:0, sb:1, sac:0, sf:0 },
+      { name:'尾上 友紀',   number:'57', ab:1, h:0, h2b:0, h3b:0, hr:0, rbi:0, bb:0, hbp:0, so:0, sb:0, sac:0, sf:0 },
+      { name:'戸田 隆介',   number:'58', ab:1, h:0, h2b:0, h3b:0, hr:0, rbi:0, bb:0, hbp:0, so:0, sb:0, sac:0, sf:0 },
+      { name:'仲井眞 波琉', number:'60', ab:1, h:0, h2b:0, h3b:0, hr:0, rbi:0, bb:0, hbp:0, so:0, sb:0, sac:0, sf:0 },
+      { name:'渕山 新',     number:'61', ab:1, h:0, h2b:0, h3b:0, hr:0, rbi:0, bb:0, hbp:0, so:0, sb:0, sac:0, sf:0 },
+      { name:'神田 橙磨',   number:'62', ab:2, h:0, h2b:0, h3b:0, hr:0, rbi:0, bb:0, hbp:0, so:1, sb:0, sac:0, sf:0 },
+      { name:'柏 敦斗',     number:'64', ab:1, h:0, h2b:0, h3b:0, hr:0, rbi:0, bb:0, hbp:0, so:1, sb:0, sac:0, sf:0 },
+      { name:'金子 新',     number:'65', ab:1, h:0, h2b:0, h3b:0, hr:0, rbi:0, bb:0, hbp:0, so:1, sb:0, sac:0, sf:0 },
+      { name:'赤坂 笑太郎', number:'66', ab:1, h:0, h2b:0, h3b:0, hr:0, rbi:0, bb:0, hbp:0, so:0, sb:0, sac:0, sf:0 },
+      { name:'川野 颯己',   number:'67', ab:1, h:0, h2b:0, h3b:0, hr:0, rbi:0, bb:0, hbp:0, so:0, sb:0, sac:0, sf:0 },
+      { name:'土佐 大聖',   number:'68', ab:1, h:0, h2b:0, h3b:0, hr:0, rbi:0, bb:0, hbp:0, so:1, sb:0, sac:0, sf:0 },
+      { name:'鹿島 鳳毅',   number:'70', ab:1, h:0, h2b:0, h3b:0, hr:0, rbi:0, bb:0, hbp:0, so:0, sb:1, sac:0, sf:0 },
+      { name:'添野 泰那',   number:'71', ab:0, h:0, h2b:0, h3b:0, hr:0, rbi:0, bb:1, hbp:0, so:0, sb:0, sac:0, sf:0 },
+      { name:'雨下 遥',     number:'73', ab:2, h:0, h2b:0, h3b:0, hr:0, rbi:0, bb:0, hbp:0, so:0, sb:0, sac:0, sf:0 },
+      { name:'島田 樹',     number:'74', ab:1, h:0, h2b:0, h3b:0, hr:0, rbi:0, bb:0, hbp:0, so:0, sb:0, sac:0, sf:0 },
+      { name:'島田 秀一',   number:'75', ab:1, h:1, h2b:0, h3b:0, hr:0, rbi:1, bb:0, hbp:0, so:0, sb:0, sac:0, sf:0 },
+      { name:'今野 咲陽',   number:'76', ab:1, h:1, h2b:0, h3b:0, hr:0, rbi:0, bb:0, hbp:0, so:0, sb:0, sac:0, sf:0 },
+      { name:'古川 眞稀',   number:'77', ab:1, h:0, h2b:0, h3b:0, hr:0, rbi:0, bb:0, hbp:0, so:0, sb:0, sac:0, sf:0 },
+    ],
+    pitching: [
+      { name:'柏 敦斗',     number:'64', g:1, w:0, l:0, sv:0, ip:2.0, np:46, ha:2, hra:0, bba:2, k:2, er:1 },
+      { name:'島田 秀一',   number:'75', g:1, w:0, l:1, sv:0, ip:2.0, np:49, ha:2, hra:0, bba:3, k:0, er:6 },
+      { name:'仲井眞 海偉', number:'59', g:1, w:0, l:0, sv:0, ip:1.0, np:22, ha:0, hra:0, bba:2, k:2, er:2 },
+      { name:'仲井眞 波琉', number:'60', g:1, w:0, l:0, sv:0, ip:1.0, np:5, ha:1, hra:0, bba:0, k:0, er:0 },
+    ],
+  },
+};
+
+// ========== 列定義 ==========
+const BATTING_COLS = [
+  {key:'name',label:'選手名',type:'text',css:'col-name'},
+  {key:'number',label:'背番号',type:'text',css:'col-number'},
+  {key:'ab',label:'打数',type:'num'},{key:'h',label:'安打',type:'num'},
+  {key:'h2b',label:'二塁打',type:'num'},{key:'h3b',label:'三塁打',type:'num'},
+  {key:'hr',label:'本塁打',type:'num'},{key:'rbi',label:'打点',type:'num'},
+  {key:'bb',label:'四球',type:'num'},{key:'hbp',label:'死球',type:'num'},
+  {key:'so',label:'三振',type:'num'},{key:'sb',label:'盗塁',type:'num'},
+  {key:'sac',label:'犠打',type:'num'},{key:'sf',label:'犠飛',type:'num'},
+  {key:'avg',label:'打率',type:'calc'},{key:'obp',label:'出塁率',type:'calc'},
+  {key:'slg',label:'長打率',type:'calc'},{key:'ops',label:'OPS',type:'calc'},
+];
+const PITCHING_COLS = [
+  {key:'name',label:'選手名',type:'text',css:'col-name'},
+  {key:'number',label:'背番号',type:'text',css:'col-number'},
+  {key:'g',label:'登板',type:'num'},{key:'w',label:'勝',type:'num'},
+  {key:'l',label:'負',type:'num'},{key:'sv',label:'SV',type:'num'},
+  {key:'ip',label:'投球回',type:'ip'},{key:'np',label:'球数',type:'num'},{key:'ha',label:'被安打',type:'num'},
+  {key:'hra',label:'被本',type:'num'},{key:'bba',label:'与四球',type:'num'},
+  {key:'k',label:'奪三振',type:'num'},{key:'er',label:'自責点',type:'num'},
+  {key:'era',label:'防御率',type:'calc'},{key:'whip',label:'WHIP',type:'calc'},
+  {key:'k9',label:'K/9',type:'calc'},
+];
+const FIELDING_COLS = [
+  {key:'name',label:'選手名',type:'text',css:'col-name'},
+  {key:'number',label:'背番号',type:'text',css:'col-number'},
+  {key:'e',label:'失策',type:'num'},
+];
+const BAT_SUM = ['ab','h','h2b','h3b','hr','rbi','bb','hbp','so','sb','sac','sf'];
+const PIT_SUM = ['g','w','l','sv','np','ha','hra','bba','k','er'];
+const FIELD_SUM = ['e'];
+
+// ========== 状態 ==========
+let leagues = [];
+let activeLeague = null;
+let activePage = 'roster';
+let editing = null;
+let pickerTarget = null; // 'batting', 'pitching', or 'fielding'
+const TOTAL_ID = '__total__';
+const SK = 'baseball-stats-v2';
+
+// ========== localStorage ==========
+function loadData() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SK));
+    if (s && s.leagues) { leagues = s.leagues; activeLeague = s.activeLeague; }
+  } catch(e) {}
+  // INITIAL_STATSに存在して、まだ未作成のリーグを自動追加
+  Object.entries(INITIAL_STATS).forEach(([name, data]) => {
+    if (!leagues.find(l => l.name === name)) {
+      const lg = mkLeague(name);
+      if (data.batting)  lg.batting  = data.batting.map(r  => ({id:genId(), ...r}));
+      if (data.pitching) lg.pitching = data.pitching.map(r => ({id:genId(), ...r}));
+      if (data.fielding) lg.fielding = data.fielding.map(r => ({id:genId(), ...r}));
+      leagues.push(lg);
+    }
+  });
+  if (!leagues.length) {
+    const lg = mkLeague('リーグ1');
+    leagues.push(lg);
+    activeLeague = lg.id;
+    saveData();
+  }
+  if (!activeLeague || !getLeague(activeLeague)) activeLeague = leagues[0].id;
+}
+function saveData() { localStorage.setItem(SK, JSON.stringify({leagues,activeLeague})); }
+
+// INITIAL_STATSを強制読み込み（既存データを上書き）
+function loadFromFile() {
+  if (!Object.keys(INITIAL_STATS).length) { alert('INITIAL_STATSにデータがありません。\nindex.htmlのINITIAL_STATS定数を編集してください。'); return; }
+  if (!confirm('INITIAL_STATSのデータで上書きします。\n（同名リーグは上書き、未登録リーグは追加）\nよろしいですか？')) return;
+  Object.entries(INITIAL_STATS).forEach(([name, data]) => {
+    let lg = leagues.find(l => l.name === name);
+    if (!lg) { lg = mkLeague(name); leagues.push(lg); }
+    if (data.batting)  lg.batting  = data.batting.map(r  => ({id:genId(), ...r}));
+    if (data.pitching) lg.pitching = data.pitching.map(r => ({id:genId(), ...r}));
+    if (data.fielding) lg.fielding = data.fielding.map(r => ({id:genId(), ...r}));
+  });
+  if (!activeLeague || !getLeague(activeLeague)) activeLeague = leagues[0]?.id;
+  saveData(); renderLeagueBar(); renderAll(); updateActions();
+  alert('読み込み完了しました。');
+}
+
+// ========== ユーティリティ ==========
+function genId() { return Date.now().toString(36)+Math.random().toString(36).substr(2,5); }
+function mkLeague(name) { return {id:genId(),name,batting:[],pitching:[],fielding:[]}; }
+function getLeague(id) { return leagues.find(l=>l.id===id); }
+function isTotal() { return activeLeague===TOTAL_ID; }
+
+function parseIP(v){const p=String(v).split('.');return(parseInt(p[0])||0)+(p.length>1?(parseInt(p[1][0])||0)/3:0);}
+function sanitizeIP(v){const s=String(v).trim();if(!s||s==='0')return 0;const p=s.split('.');const w=Math.max(0,parseInt(p[0])||0);if(p.length<2)return w;let f=parseInt(p[1][0])||0;if(f>2)f=2;return parseFloat(w+'.'+f);}
+
+function calcBat(r){
+  const ab=r.ab||0,h=r.h||0,h2b=r.h2b||0,h3b=r.h3b||0,hr=r.hr||0,bb=r.bb||0,hbp=r.hbp||0,sf=r.sf||0;
+  const s1=h-h2b-h3b-hr, avg=ab>0?h/ab:null, od=ab+bb+hbp+sf;
+  const obp=od>0?(h+bb+hbp)/od:null, tb=s1+2*h2b+3*h3b+4*hr, slg=ab>0?tb/ab:null;
+  return{avg,obp,slg,ops:obp!=null&&slg!=null?obp+slg:null};
+}
+function calcPit(r){
+  const ip=parseIP(r.ip||0);
+  return{era:ip>0?((r.er||0)/ip)*9:null,whip:ip>0?((r.ha||0)+(r.bba||0))/ip:null,k9:ip>0?((r.k||0)/ip)*9:null};
+}
+function fmtRate(v){if(v==null||isNaN(v)||!isFinite(v))return'---';return v>=1?v.toFixed(3):v.toFixed(3).substring(1);}
+function fmtCalc(k,v){if(v==null||isNaN(v)||!isFinite(v))return'---';if(['avg','obp','slg'].includes(k))return fmtRate(v);if(k==='ops')return v.toFixed(3);return v.toFixed(2);}
+
+function getCurrentData(){
+  if(isTotal()) return getTotalData();
+  const lg=getLeague(activeLeague);
+  return lg?{batting:lg.batting,pitching:lg.pitching,fielding:lg.fielding||[]}:{batting:[],pitching:[],fielding:[]};
+}
+function getTotalData(){
+  const bm={},pm={},fm={};
+  leagues.forEach(lg=>{
+    lg.batting.forEach(r=>{
+      const k=r.name;if(!k)return;
+      if(!bm[k]){bm[k]={id:'t_'+k,name:r.name,number:r.number};BAT_SUM.forEach(x=>bm[k][x]=0);}
+      BAT_SUM.forEach(x=>bm[k][x]+=(r[x]||0));
+    });
+    lg.pitching.forEach(r=>{
+      const k=r.name;if(!k)return;
+      if(!pm[k]){pm[k]={id:'t_'+k,name:r.name,number:r.number,_ip:0};PIT_SUM.forEach(x=>pm[k][x]=0);}
+      PIT_SUM.forEach(x=>pm[k][x]+=(r[x]||0));pm[k]._ip+=parseIP(r.ip||0);
+    });
+    (lg.fielding||[]).forEach(r=>{
+      const k=r.name;if(!k)return;
+      if(!fm[k]){fm[k]={id:'t_'+k,name:r.name,number:r.number};FIELD_SUM.forEach(x=>fm[k][x]=0);}
+      FIELD_SUM.forEach(x=>fm[k][x]+=(r[x]||0));
+    });
+  });
+  Object.values(pm).forEach(r=>{const w=Math.floor(r._ip);let f=Math.round((r._ip-w)*3);r.ip=f>=3?(w+1):parseFloat(w+'.'+f);delete r._ip;});
+  return{batting:Object.values(bm),pitching:Object.values(pm),fielding:Object.values(fm)};
+}
+
+// ========== 全選手リスト取得 ==========
+function getAllPlayers(){
+  const map={};
+  ROSTER.forEach(t=>t.teams.forEach(tm=>tm.players.forEach(p=>{
+    const k=p.name;
+    if(!map[k]) map[k]={name:p.name,number:String(p.n),teams:[]};
+    map[k].teams.push({team:tm.name,color:tm.color,number:p.n});
+  })));
+  return Object.values(map);
+}
+
+// ========== ページ切替 ==========
+function switchPage(page){
+  if(editing)commitEdit();
+  activePage=page;
+  document.querySelectorAll('.main-tab').forEach((t,i)=>{
+    t.classList.toggle('active',['roster','batting','pitching','fielding'][i]===page);
+  });
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById({roster:'pageRoster',batting:'pageBatting',pitching:'pagePitching',fielding:'pageFielding'}[page]).classList.add('active');
+  document.getElementById('leagueBar').classList.toggle('hidden',page==='roster');
+  if(page!=='roster'){renderLeagueBar();renderAll();updateActions();}
+}
+
+// ========== 名簿描画 ==========
+function gradeClass(n){
+  if(n===10) return 'grade-captain';
+  if(n>=1&&n<=15) return 'grade-3';
+  if(n>=16&&n<=54) return 'grade-2';
+  if(n>=55) return 'grade-1';
+  return '';
+}
+
+function renderRoster(){
+  const el=document.getElementById('pageRoster');
+  let html='<div class="grade-legend">';
+  html+='<div class="grade-legend-item"><span class="grade-legend-dot" style="background:#ff9800"></span>主将(10)</div>';
+  html+='<div class="grade-legend-item"><span class="grade-legend-dot" style="background:#e94560"></span>3年(1-15)</div>';
+  html+='<div class="grade-legend-item"><span class="grade-legend-dot" style="background:#2196f3"></span>2年(20-54)</div>';
+  html+='<div class="grade-legend-item"><span class="grade-legend-dot" style="background:#4caf50"></span>1年(55-)</div>';
+  html+='</div>';
+  ROSTER.forEach(t=>{
+    html+=`<div class="roster-tournament"><div class="roster-tournament-title">${t.tournament}</div>`;
+    t.teams.forEach(tm=>{
+      html+=`<div class="roster-team"><div class="roster-team-header">
+        <span class="team-color-dot" style="background:${tm.color}"></span>
+        <span class="roster-team-name">${tm.name}</span>
+        <span class="roster-team-count">${tm.players.length}人</span></div>
+        <div class="player-cards">`;
+      tm.players.forEach(p=>{
+        html+=`<div class="player-card ${gradeClass(p.n)}">
+          <span class="player-num">${p.n}</span><span class="player-name">${p.name}</span></div>`;
+      });
+      html+=`</div>`;
+      if(tm.staff&&tm.staff.length){
+        html+=`<div class="staff-section"><div class="staff-cards">`;
+        tm.staff.forEach(s=>{html+=`<div class="staff-card"><span class="staff-num">${s.n}</span>${s.name}</div>`;});
+        html+=`</div></div>`;
+      }
+      html+=`</div>`;
+    });
+    html+=`</div>`;
+  });
+  el.innerHTML=html;
+}
+
+// ========== リーグバー ==========
+function renderLeagueBar(){
+  const bar=document.getElementById('leagueBar');
+  bar.innerHTML='';
+  const mk=(cls,txt,fn)=>{const b=document.createElement('button');b.className=cls;b.textContent=txt;b.onclick=fn;bar.appendChild(b);return b;};
+  mk('league-btn total'+(activeLeague===TOTAL_ID?' active':''),'総合',()=>selectLeague(TOTAL_ID));
+  leagues.forEach(lg=>{
+    const b=mk('league-btn'+(activeLeague===lg.id?' active':''),lg.name,()=>selectLeague(lg.id));
+    b.oncontextmenu=e=>{e.preventDefault();showLeagueMenu(lg.id);};
+    let ht;b.ontouchstart=()=>{ht=setTimeout(()=>showLeagueMenu(lg.id),500);};b.ontouchend=()=>clearTimeout(ht);b.ontouchmove=()=>clearTimeout(ht);
+  });
+  mk('league-add-btn','+',showAddLeagueDialog);
+}
+function selectLeague(id){if(editing)commitEdit();activeLeague=id;saveData();renderLeagueBar();renderAll();updateActions();}
+function updateActions(){const t=isTotal();document.getElementById('battingActions').style.display=t?'none':'';document.getElementById('pitchingActions').style.display=t?'none':'';document.getElementById('fieldingActions').style.display=t?'none':'';}
+
+// ========== ダイアログ ==========
+function showDialog(title,val,btns){
+  document.getElementById('dialogTitle').textContent=title;
+  const inp=document.getElementById('dialogInput');inp.value=val||'';
+  const act=document.getElementById('dialogActions');act.innerHTML='';
+  btns.forEach(b=>{const e=document.createElement('button');e.className='dialog-btn '+(b.c||'ok');e.textContent=b.l;e.onclick=()=>{closeDialog();b.fn(inp.value);};act.appendChild(e);});
+  document.getElementById('overlay').classList.add('show');
+  setTimeout(()=>inp.focus(),50);
+  inp.onkeydown=e=>{if(e.key==='Enter'){closeDialog();(btns.find(b=>b.c==='ok')||btns[btns.length-1]).fn(inp.value);}if(e.key==='Escape')closeDialog();};
+}
+function closeDialog(){document.getElementById('overlay').classList.remove('show');}
+function showAddLeagueDialog(){
+  showDialog('リーグ追加','',[
+    {l:'キャンセル',c:'cancel',fn:()=>{}},
+    {l:'追加',c:'ok',fn:v=>{v=v.trim();if(!v)return;const lg=mkLeague(v);leagues.push(lg);activeLeague=lg.id;saveData();renderLeagueBar();renderAll();updateActions();}},
+  ]);
+}
+function showLeagueMenu(id){
+  const lg=getLeague(id);if(!lg)return;
+  showDialog('リーグ編集: '+lg.name,lg.name,[
+    {l:'削除',c:'danger',fn:()=>{if(!confirm('「'+lg.name+'」を削除しますか？'))return;leagues=leagues.filter(l=>l.id!==id);if(activeLeague===id)activeLeague=leagues.length?leagues[0].id:null;if(!leagues.length){const n=mkLeague('リーグ1');leagues.push(n);activeLeague=n.id;}saveData();renderLeagueBar();renderAll();updateActions();}},
+    {l:'キャンセル',c:'cancel',fn:()=>{}},
+    {l:'名前変更',c:'ok',fn:v=>{v=v.trim();if(!v)return;lg.name=v;saveData();renderLeagueBar();}},
+  ]);
+}
+
+// ========== テーブル描画 ==========
+function renderHead(tt){
+  const cols=tt==='batting'?BATTING_COLS:tt==='pitching'?PITCHING_COLS:FIELDING_COLS;
+  const tr=document.getElementById(tt+'Head');
+  tr.innerHTML=isTotal()?'':'<th style="width:36px"></th>';
+  cols.forEach(c=>{const th=document.createElement('th');th.textContent=c.label;if(c.css)th.classList.add(c.css);tr.appendChild(th);});
+}
+function renderTable(tt){
+  const data=[...getCurrentData()[tt]].sort((a,b)=>(parseInt(a.number)||0)-(parseInt(b.number)||0)),cols=tt==='batting'?BATTING_COLS:tt==='pitching'?PITCHING_COLS:FIELDING_COLS;
+  const tbody=document.getElementById(tt+'Body'),total=isTotal();
+  tbody.innerHTML='';
+  data.forEach(row=>{
+    const tr=document.createElement('tr');
+    const num=parseInt(row.number)||0;const gc=gradeClass(num);if(gc)tr.className='row-'+gc;
+    if(!total){const td=document.createElement('td');td.className='col-delete';const b=document.createElement('button');b.className='delete-btn';b.textContent='×';b.onclick=()=>deleteRow(tt,row.id);td.appendChild(b);tr.appendChild(td);}
+    const stats=tt==='batting'?calcBat(row):tt==='pitching'?calcPit(row):{};
+    cols.forEach(col=>{
+      const td=document.createElement('td');
+      if(col.css)td.classList.add(col.css);
+      if(col.type==='calc'){td.classList.add('col-calc');td.textContent=fmtCalc(col.key,stats[col.key]);}
+      else if(total){td.style.color='#555';td.textContent=col.type==='text'?(row[col.key]||''):(row[col.key]||0);}
+      else{td.classList.add('editable');td.dataset.rowId=row.id;td.dataset.colKey=col.key;td.dataset.tableType=tt;td.textContent=col.type==='text'?(row[col.key]||''):(row[col.key]||0);td.onclick=()=>startEdit(td,tt,row.id,col);}
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+}
+function renderAll(){renderHead('batting');renderHead('pitching');renderHead('fielding');renderTable('batting');renderTable('pitching');renderTable('fielding');}
+
+// ========== セル編集 ==========
+function startEdit(td,tt,rid,col){
+  if(isTotal())return;if(editing&&editing.td===td)return;if(editing)commitEdit();
+  const lg=getLeague(activeLeague);if(!lg)return;
+  const row=lg[tt].find(r=>r.id===rid);if(!row)return;
+  td.classList.add('editing');
+  const inp=document.createElement('input');inp.type='text';
+  inp.value=col.type==='text'?(row[col.key]||''):(row[col.key]||0);
+  td.textContent='';td.appendChild(inp);inp.focus();inp.select();
+  editing={td,tableType:tt,rowId:rid,col,input:inp};
+  inp.addEventListener('keydown',onKey);inp.addEventListener('blur',onBlur);
+}
+function commitEdit(){
+  if(!editing)return;const{td,tableType:tt,rowId:rid,col,input:inp}=editing;
+  const lg=getLeague(activeLeague);
+  if(lg){const row=lg[tt].find(r=>r.id===rid);if(row){if(col.type==='text')row[col.key]=inp.value;else if(col.type==='ip')row[col.key]=sanitizeIP(inp.value);else row[col.key]=Math.max(0,parseInt(inp.value)||0);}}
+  inp.removeEventListener('keydown',onKey);inp.removeEventListener('blur',onBlur);
+  td.classList.remove('editing');editing=null;saveData();renderTable(tt);
+}
+function cancelEdit(){if(!editing)return;const{td,tableType:tt,input:inp}=editing;inp.removeEventListener('keydown',onKey);inp.removeEventListener('blur',onBlur);td.classList.remove('editing');editing=null;renderTable(tt);}
+function onKey(e){
+  const mk=()=>({tableType:editing.tableType,rowId:editing.rowId,col:editing.col});
+  if(e.key==='Enter'){e.preventDefault();const i=mk();commitEdit();moveFocus(i,0,1);}
+  else if(e.key==='Tab'){e.preventDefault();const i=mk();commitEdit();moveFocus(i,e.shiftKey?-1:1,0);}
+  else if(e.key==='Escape'){e.preventDefault();cancelEdit();}
+  else if(e.key==='ArrowDown'){e.preventDefault();const i=mk();commitEdit();moveFocus(i,0,1);}
+  else if(e.key==='ArrowUp'){e.preventDefault();const i=mk();commitEdit();moveFocus(i,0,-1);}
+}
+let blurT=null;
+function onBlur(){blurT=setTimeout(()=>{if(editing)commitEdit();},120);}
+function moveFocus(info,cd,rd){
+  if(blurT){clearTimeout(blurT);blurT=null;}if(isTotal())return;
+  const lg=getLeague(activeLeague);if(!lg)return;
+  const data=lg[info.tableType],cols=(info.tableType==='batting'?BATTING_COLS:info.tableType==='pitching'?PITCHING_COLS:FIELDING_COLS).filter(c=>c.type!=='calc');
+  const ri=data.findIndex(r=>r.id===info.rowId),ci=cols.findIndex(c=>c.key===info.col.key);
+  if(ri<0||ci<0)return;let nr=ri+rd,nc=ci+cd;
+  if(nc>=cols.length){nc=0;nr++;}else if(nc<0){nc=cols.length-1;nr--;}
+  if(nr<0||nr>=data.length)return;
+  const tid=data[nr].id,tc=cols[nc];
+  requestAnimationFrame(()=>{const td=document.querySelector(`td[data-table-type="${info.tableType}"][data-row-id="${tid}"][data-col-key="${tc.key}"]`);if(td)td.click();});
+}
+
+// ========== 選手ピッカー ==========
+function openPicker(tt){
+  if(isTotal())return;
+  pickerTarget=tt;
+  document.getElementById('pickerTitle').textContent='選手を選択（'+(tt==='batting'?'打撃':tt==='pitching'?'投手':'守備')+'）';
+  document.getElementById('pickerSearch').value='';
+  renderPickerCards('');
+  document.getElementById('pickerOverlay').classList.add('show');
+  setTimeout(()=>document.getElementById('pickerSearch').focus(),100);
+}
+function closePicker(){document.getElementById('pickerOverlay').classList.remove('show');pickerTarget=null;}
+function filterPicker(){renderPickerCards(document.getElementById('pickerSearch').value);}
+
+function renderPickerCards(query){
+  const body=document.getElementById('pickerBody');
+  const lg=getLeague(activeLeague);if(!lg){body.innerHTML='';return;}
+  const existing=new Set(lg[pickerTarget].map(r=>r.name));
+  const q=query.trim().toLowerCase();
+  let html='';
+
+  ROSTER.forEach(t=>{
+    t.teams.forEach(tm=>{
+      const filtered=tm.players.filter(p=>{
+        if(!q)return true;
+        return p.name.toLowerCase().includes(q)||String(p.n).includes(q);
+      });
+      if(!filtered.length)return;
+      html+=`<div class="picker-team-section">
+        <div class="picker-team-label">${t.tournament} / ${tm.name}</div>
+        <div class="picker-cards">`;
+      filtered.forEach(p=>{
+        const added=existing.has(p.name);
+        html+=`<div class="picker-card ${gradeClass(p.n)}${added?' already-added':''}" onclick="pickPlayer(${p.n},'${p.name.replace(/'/g,"\\'")}')">
+          <span class="player-num">${p.n}</span><span class="player-name">${p.name}${added?' (登録済)':''}</span></div>`;
+      });
+      html+=`</div></div>`;
+    });
+  });
+
+  html+=`<div class="picker-manual"><button onclick="pickManual()">手動で追加</button></div>`;
+  body.innerHTML=html;
+}
+
+function pickPlayer(num,name){
+  if(!pickerTarget||isTotal())return;
+  const lg=getLeague(activeLeague);if(!lg)return;
+  const tt=pickerTarget;
+  const row=tt==='batting'
+    ?{id:genId(),name,number:String(num),ab:0,h:0,h2b:0,h3b:0,hr:0,rbi:0,bb:0,hbp:0,so:0,sb:0,sac:0,sf:0}
+    :tt==='pitching'
+    ?{id:genId(),name,number:String(num),g:0,w:0,l:0,sv:0,ip:0,ha:0,hra:0,bba:0,k:0,er:0}
+    :{id:genId(),name,number:String(num),e:0};
+  lg[tt].push(row);
+  lg[tt].sort((a,b)=>(parseInt(a.number)||0)-(parseInt(b.number)||0));
+  saveData();renderTable(tt);
+  // ピッカー更新（登録済み表示）
+  renderPickerCards(document.getElementById('pickerSearch').value);
+}
+
+function pickManual(){
+  if(!pickerTarget||isTotal())return;
+  closePicker();
+  const lg=getLeague(activeLeague);if(!lg)return;
+  const tt=pickerTarget;
+  const row=tt==='batting'
+    ?{id:genId(),name:'',number:'',ab:0,h:0,h2b:0,h3b:0,hr:0,rbi:0,bb:0,hbp:0,so:0,sb:0,sac:0,sf:0}
+    :tt==='pitching'
+    ?{id:genId(),name:'',number:'',g:0,w:0,l:0,sv:0,ip:0,ha:0,hra:0,bba:0,k:0,er:0}
+    :{id:genId(),name:'',number:'',e:0};
+  lg[tt].push(row);saveData();renderTable(tt);
+  requestAnimationFrame(()=>{const td=document.querySelector(`td[data-table-type="${tt}"][data-row-id="${row.id}"][data-col-key="name"]`);if(td)td.click();});
+}
+
+// ========== 行削除 ==========
+function deleteRow(tt,rid){
+  if(isTotal())return;if(!confirm('この選手を削除しますか？'))return;
+  if(editing&&editing.rowId===rid){editing.input.removeEventListener('keydown',onKey);editing.input.removeEventListener('blur',onBlur);editing=null;}
+  const lg=getLeague(activeLeague);if(!lg)return;
+  lg[tt]=lg[tt].filter(r=>r.id!==rid);saveData();renderTable(tt);
+}
+
+// ========== 初期化 ==========
+window.addEventListener('load',()=>{
+  loadData();
+  renderRoster();
+  renderAll();
+});
+</script>
+</body>
+</html>
