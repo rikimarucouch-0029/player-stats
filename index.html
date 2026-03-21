@@ -607,7 +607,6 @@ td.col-name.editing input { text-align: left; padding-left: 8px; }
   <div class="toolbar-top">
     <span class="page-title">選手成績管理</span>
     <div class="spacer"></div>
-    <button class="tb" onclick="loadFromFile()" title="INITIAL_STATSのデータを読み込む">📂 ファイル読込</button>
   </div>
 
   <div class="main-tabs">
@@ -627,9 +626,7 @@ td.col-name.editing input { text-align: left; padding-left: 8px; }
 
     <!-- 打撃成績ページ -->
     <div class="page" id="pageBatting">
-      <div class="table-actions" id="battingActions">
-        <button class="tb" onclick="openPicker('batting')">+ 選手追加</button>
-      </div>
+      <div class="table-actions" id="battingActions"></div>
       <div class="table-scroll">
         <table><thead><tr id="battingHead"></tr></thead><tbody id="battingBody"></tbody></table>
       </div>
@@ -637,9 +634,7 @@ td.col-name.editing input { text-align: left; padding-left: 8px; }
 
     <!-- 投手成績ページ -->
     <div class="page" id="pagePitching">
-      <div class="table-actions" id="pitchingActions">
-        <button class="tb" onclick="openPicker('pitching')">+ 選手追加</button>
-      </div>
+      <div class="table-actions" id="pitchingActions"></div>
       <div class="table-scroll">
         <table><thead><tr id="pitchingHead"></tr></thead><tbody id="pitchingBody"></tbody></table>
       </div>
@@ -647,9 +642,7 @@ td.col-name.editing input { text-align: left; padding-left: 8px; }
 
     <!-- 守備成績ページ -->
     <div class="page" id="pageFielding">
-      <div class="table-actions" id="fieldingActions">
-        <button class="tb" onclick="openPicker('fielding')">+ 選手追加</button>
-      </div>
+      <div class="table-actions" id="fieldingActions"></div>
       <div class="table-scroll">
         <table><thead><tr id="fieldingHead"></tr></thead><tbody id="fieldingBody"></tbody></table>
       </div>
@@ -1123,11 +1116,8 @@ function renderLeagueBar(){
   const mk=(cls,txt,fn)=>{const b=document.createElement('button');b.className=cls;b.textContent=txt;b.onclick=fn;bar.appendChild(b);return b;};
   mk('league-btn total'+(activeLeague===TOTAL_ID?' active':''),'総合',()=>selectLeague(TOTAL_ID));
   leagues.forEach(lg=>{
-    const b=mk('league-btn'+(activeLeague===lg.id?' active':''),lg.name,()=>selectLeague(lg.id));
-    b.oncontextmenu=e=>{e.preventDefault();showLeagueMenu(lg.id);};
-    let ht;b.ontouchstart=()=>{ht=setTimeout(()=>showLeagueMenu(lg.id),500);};b.ontouchend=()=>clearTimeout(ht);b.ontouchmove=()=>clearTimeout(ht);
+    mk('league-btn'+(activeLeague===lg.id?' active':''),lg.name,()=>selectLeague(lg.id));
   });
-  mk('league-add-btn','+',showAddLeagueDialog);
 }
 function selectLeague(id){if(editing)commitEdit();activeLeague=id;saveData();renderLeagueBar();renderAll();updateActions();}
 function updateActions(){const t=isTotal();document.getElementById('battingActions').style.display=t?'none':'';document.getElementById('pitchingActions').style.display=t?'none':'';document.getElementById('fieldingActions').style.display=t?'none':'';}
@@ -1162,7 +1152,7 @@ function showLeagueMenu(id){
 function renderHead(tt){
   const cols=tt==='batting'?BATTING_COLS:tt==='pitching'?PITCHING_COLS:FIELDING_COLS;
   const tr=document.getElementById(tt+'Head');
-  tr.innerHTML=isTotal()?'':'<th style="width:36px"></th>';
+  tr.innerHTML='';
   cols.forEach(c=>{const th=document.createElement('th');th.textContent=c.label;if(c.css)th.classList.add(c.css);tr.appendChild(th);});
 }
 // 平均より上=緑、下=赤にするキー (higher=good / lower=good)
@@ -1221,14 +1211,12 @@ function renderTable(tt){
   data.forEach(row=>{
     const tr=document.createElement('tr');
     const num=parseInt(row.number)||0;const gc=gradeClass(num);if(gc)tr.className='row-'+gc;
-    if(!total){const td=document.createElement('td');td.className='col-delete';const b=document.createElement('button');b.className='delete-btn';b.textContent='×';b.onclick=()=>deleteRow(tt,row.id);td.appendChild(b);tr.appendChild(td);}
     const stats=tt==='batting'?calcBat(row):tt==='pitching'?calcPit(row):{};
     cols.forEach(col=>{
       const td=document.createElement('td');
       if(col.css)td.classList.add(col.css);
       if(col.type==='calc'){td.classList.add('col-calc');td.textContent=fmtCalc(col.key,stats[col.key]);}
-      else if(total){td.style.color='#555';td.textContent=col.type==='text'?(row[col.key]||''):(row[col.key]||0);if(col.key==='name'){td.style.cursor='pointer';td.style.textDecoration='underline';td.onclick=()=>openPlayerModal(row.name);}}
-      else{td.classList.add('editable');td.dataset.rowId=row.id;td.dataset.colKey=col.key;td.dataset.tableType=tt;td.textContent=col.type==='text'?(row[col.key]||''):(row[col.key]||0);td.onclick=()=>startEdit(td,tt,row.id,col);}
+      else{td.textContent=col.type==='text'?(row[col.key]||''):(row[col.key]||0);if(col.key==='name'){td.style.cursor='pointer';td.style.textDecoration='underline';td.onclick=()=>openPlayerModal(row.name);}}
       tr.appendChild(td);
     });
     tbody.appendChild(tr);
