@@ -1093,7 +1093,7 @@ function renderRoster(){
         <span class="roster-team-count">${tm.players.length}人</span></div>
         <div class="player-cards">`;
       tm.players.forEach(p=>{
-        html+=`<div class="player-card ${gradeClass(p.n)}">
+        html+=`<div class="player-card ${gradeClass(p.n)}" style="cursor:pointer" onclick="openPlayerModal('${p.name.replace(/'/g,"\\'")}')">
           <span class="player-num">${p.n}</span><span class="player-name">${p.name}</span></div>`;
       });
       html+=`</div>`;
