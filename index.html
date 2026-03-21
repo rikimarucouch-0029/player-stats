@@ -508,6 +508,74 @@ td.col-name.editing input { text-align: left; padding-left: 8px; }
 }
 .picker-manual button:hover { color: rgba(255,255,255,.8); border-color: rgba(255,255,255,.5); }
 
+/* ========== ランキング ========== */
+.ranking-cats {
+  display: flex; gap: 4px; padding: 8px 10px; overflow-x: auto;
+  -webkit-overflow-scrolling: touch; flex-shrink: 0;
+}
+.rank-cat {
+  padding: 6px 14px; border: none; border-radius: 16px;
+  background: rgba(255,255,255,.1); color: rgba(255,255,255,.6);
+  font-size: .75rem; font-weight: 600; cursor: pointer; white-space: nowrap; font-family: inherit;
+}
+.rank-cat.active { background: #e94560; color: #fff; }
+.rank-list { padding: 8px; flex: 1; overflow-y: auto; }
+.rank-item {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  background: rgba(255,255,255,.06); border-radius: 8px; margin-bottom: 6px;
+  cursor: pointer; transition: background .12s;
+}
+.rank-item:hover { background: rgba(255,255,255,.12); }
+.rank-pos {
+  font-size: 1.1rem; font-weight: 800; color: #e94560; min-width: 28px; text-align: center;
+}
+.rank-pos.gold { color: #ffd700; }
+.rank-pos.silver { color: #c0c0c0; }
+.rank-pos.bronze { color: #cd7f32; }
+.rank-info { flex: 1; }
+.rank-name { font-size: .85rem; font-weight: 700; color: #fff; }
+.rank-sub { font-size: .68rem; color: rgba(255,255,255,.5); }
+.rank-val { font-size: 1rem; font-weight: 800; color: #fff; }
+
+/* ========== 選手詳細モーダル ========== */
+.player-modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 1000;
+  display: none; align-items: center; justify-content: center; padding: 16px;
+}
+.player-modal-overlay.show { display: flex; }
+.player-modal {
+  background: #1a1a2e; border-radius: 12px; width: 100%; max-width: 420px;
+  max-height: 85vh; overflow-y: auto; padding: 20px;
+}
+.pm-header {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;
+}
+.pm-name { font-size: 1.1rem; font-weight: 800; color: #fff; }
+.pm-number { font-size: .8rem; color: rgba(255,255,255,.5); margin-left: 8px; }
+.pm-close {
+  background: none; border: none; color: rgba(255,255,255,.5); font-size: 1.3rem; cursor: pointer;
+}
+.pm-section { margin-bottom: 16px; }
+.pm-section-title {
+  font-size: .75rem; font-weight: 700; color: #e94560; margin-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,.1); padding-bottom: 4px;
+}
+.pm-bar-row {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+}
+.pm-bar-label { font-size: .7rem; color: rgba(255,255,255,.7); min-width: 50px; text-align: right; }
+.pm-bar-wrap { flex: 1; height: 18px; background: rgba(255,255,255,.08); border-radius: 4px; position: relative; overflow: hidden; }
+.pm-bar { height: 100%; border-radius: 4px; transition: width .3s; position: absolute; left: 0; top: 0; }
+.pm-bar.player { background: #e94560; z-index: 2; }
+.pm-bar.team { background: rgba(255,255,255,.2); z-index: 1; }
+.pm-bar.grade { background: rgba(33,150,243,.4); z-index: 1; }
+.pm-bar-val { font-size: .68rem; color: rgba(255,255,255,.8); min-width: 40px; text-align: left; }
+.pm-legend {
+  display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;
+}
+.pm-legend-item { display: flex; align-items: center; gap: 4px; font-size: .65rem; color: rgba(255,255,255,.6); }
+.pm-legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+
 /* ========== モバイル対応 ========== */
 @media (max-width: 600px) {
   .toolbar-top { padding: 6px 8px; }
@@ -532,6 +600,7 @@ td.col-name.editing input { text-align: left; padding-left: 8px; }
     <button class="main-tab" onclick="switchPage('batting')">打撃成績</button>
     <button class="main-tab" onclick="switchPage('pitching')">投手成績</button>
     <button class="main-tab" onclick="switchPage('fielding')">守備成績</button>
+    <button class="main-tab" onclick="switchPage('ranking')">ランキング</button>
   </div>
 
   <!-- リーグバー（成績ページのみ） -->
@@ -570,7 +639,18 @@ td.col-name.editing input { text-align: left; padding-left: 8px; }
         <table><thead><tr id="fieldingHead"></tr></thead><tbody id="fieldingBody"></tbody></table>
       </div>
     </div>
+
+    <!-- ランキングページ -->
+    <div class="page" id="pageRanking">
+      <div class="ranking-cats" id="rankingCats"></div>
+      <div class="rank-list" id="rankList"></div>
+    </div>
   </div>
+
+<!-- 選手詳細モーダル -->
+<div class="player-modal-overlay" id="playerModal" onclick="if(event.target===this)closePlayerModal()">
+  <div class="player-modal" id="playerModalContent"></div>
+</div>
 </div>
 
 <!-- ダイアログ -->
@@ -970,12 +1050,13 @@ function switchPage(page){
   if(editing)commitEdit();
   activePage=page;
   document.querySelectorAll('.main-tab').forEach((t,i)=>{
-    t.classList.toggle('active',['roster','batting','pitching','fielding'][i]===page);
+    t.classList.toggle('active',['roster','batting','pitching','fielding','ranking'][i]===page);
   });
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.getElementById({roster:'pageRoster',batting:'pageBatting',pitching:'pagePitching',fielding:'pageFielding'}[page]).classList.add('active');
+  document.getElementById({roster:'pageRoster',batting:'pageBatting',pitching:'pagePitching',fielding:'pageFielding',ranking:'pageRanking'}[page]).classList.add('active');
   document.getElementById('leagueBar').classList.toggle('hidden',page==='roster');
-  if(page!=='roster'){renderLeagueBar();renderAll();updateActions();}
+  if(page==='ranking'){renderLeagueBar();renderRanking();}
+  else if(page!=='roster'){renderLeagueBar();renderAll();updateActions();}
 }
 
 // ========== 名簿描画 ==========
@@ -1082,7 +1163,7 @@ function renderTable(tt){
       const td=document.createElement('td');
       if(col.css)td.classList.add(col.css);
       if(col.type==='calc'){td.classList.add('col-calc');td.textContent=fmtCalc(col.key,stats[col.key]);}
-      else if(total){td.style.color='#555';td.textContent=col.type==='text'?(row[col.key]||''):(row[col.key]||0);}
+      else if(total){td.style.color='#555';td.textContent=col.type==='text'?(row[col.key]||''):(row[col.key]||0);if(col.key==='name'){td.style.cursor='pointer';td.style.textDecoration='underline';td.onclick=()=>openPlayerModal(row.name);}}
       else{td.classList.add('editable');td.dataset.rowId=row.id;td.dataset.colKey=col.key;td.dataset.tableType=tt;td.textContent=col.type==='text'?(row[col.key]||''):(row[col.key]||0);td.onclick=()=>startEdit(td,tt,row.id,col);}
       tr.appendChild(td);
     });
@@ -1213,6 +1294,186 @@ function deleteRow(tt,rid){
   const lg=getLeague(activeLeague);if(!lg)return;
   lg[tt]=lg[tt].filter(r=>r.id!==rid);saveData();renderTable(tt);
 }
+
+// ========== ランキング ==========
+const RANK_CATS = [
+  {key:'avg',label:'打率',type:'bat',fn:r=>{const s=calcBat(r);return s.avg;},fmt:v=>fmtRate(v),min:3,minKey:'ab'},
+  {key:'ops',label:'OPS',type:'bat',fn:r=>{const s=calcBat(r);return s.ops;},fmt:v=>v!=null?v.toFixed(3):'---',min:3,minKey:'ab'},
+  {key:'h',label:'安打',type:'bat',fn:r=>r.h||0,fmt:v=>v,min:0},
+  {key:'rbi',label:'打点',type:'bat',fn:r=>r.rbi||0,fmt:v=>v,min:0},
+  {key:'hr',label:'本塁打',type:'bat',fn:r=>r.hr||0,fmt:v=>v,min:0},
+  {key:'sb',label:'盗塁',type:'bat',fn:r=>r.sb||0,fmt:v=>v,min:0},
+  {key:'bb',label:'四球',type:'bat',fn:r=>r.bb||0,fmt:v=>v,min:0},
+  {key:'era',label:'防御率',type:'pit',fn:r=>{const s=calcPit(r);return s.era;},fmt:v=>v!=null?v.toFixed(2):'---',min:1,minKey:'g',lower:true},
+  {key:'k',label:'奪三振',type:'pit',fn:r=>r.k||0,fmt:v=>v,min:0},
+  {key:'whip',label:'WHIP',type:'pit',fn:r=>{const s=calcPit(r);return s.whip;},fmt:v=>v!=null?v.toFixed(2):'---',min:1,minKey:'g',lower:true},
+];
+let activeRankCat = 'avg';
+
+function renderRanking(){
+  const catsEl=document.getElementById('rankingCats');
+  catsEl.innerHTML='';
+  RANK_CATS.forEach(c=>{
+    const b=document.createElement('button');
+    b.className='rank-cat'+(activeRankCat===c.key?' active':'');
+    b.textContent=c.label;
+    b.onclick=()=>{activeRankCat=c.key;renderRanking();};
+    catsEl.appendChild(b);
+  });
+  const cat=RANK_CATS.find(c=>c.key===activeRankCat);
+  if(!cat)return;
+  const data=getTotalData();
+  const src=cat.type==='bat'?data.batting:data.pitching;
+  let items=src.map(r=>({name:r.name,number:r.number,val:cat.fn(r),raw:r}))
+    .filter(x=>x.val!=null&&!isNaN(x.val)&&isFinite(x.val));
+  if(cat.min&&cat.minKey){items=items.filter(x=>(x.raw[cat.minKey]||0)>=cat.min);}
+  items.sort((a,b)=>cat.lower?(a.val-b.val):(b.val-a.val));
+  const list=document.getElementById('rankList');
+  if(!items.length){list.innerHTML='<div style="color:rgba(255,255,255,.4);text-align:center;padding:40px">データなし</div>';return;}
+  let html='';
+  items.forEach((it,i)=>{
+    const pos=i+1;
+    const pcls=pos===1?'gold':pos===2?'silver':pos===3?'bronze':'';
+    html+=`<div class="rank-item" onclick="openPlayerModal('${it.name.replace(/'/g,"\\'")}')">
+      <div class="rank-pos ${pcls}">${pos}</div>
+      <div class="rank-info"><div class="rank-name">${it.name}</div><div class="rank-sub">#${it.number}</div></div>
+      <div class="rank-val">${cat.fmt(it.val)}</div>
+    </div>`;
+  });
+  list.innerHTML=html;
+}
+
+// ========== 選手詳細モーダル ==========
+function getGrade(num){
+  const n=parseInt(num)||0;
+  if(n===10)return '3年';
+  if(n>=1&&n<=15)return '3年';
+  if(n>=16&&n<=54)return '2年';
+  if(n>=55)return '1年';
+  return '';
+}
+function getGradeLabel(num){
+  const n=parseInt(num)||0;
+  if(n===10)return '3年';
+  if(n>=1&&n<=15)return '3年';
+  if(n>=16&&n<=54)return '2年';
+  if(n>=55)return '1年';
+  return '全体';
+}
+
+function openPlayerModal(name){
+  const data=getTotalData();
+  const bat=data.batting.find(r=>r.name===name);
+  const pit=data.pitching.find(r=>r.name===name);
+  if(!bat&&!pit)return;
+  const num=(bat||pit).number;
+  const grade=getGrade(num);
+
+  // チーム平均・学年平均を計算
+  const teamBatAvg={},gradeBatAvg={};
+  const batKeys=['ab','h','h2b','h3b','hr','rbi','bb','hbp','so','sb'];
+  if(bat){
+    const allBat=data.batting.filter(r=>(r.ab||0)>0);
+    const gradeBat=allBat.filter(r=>getGrade(r.number)===grade);
+    batKeys.forEach(k=>{
+      teamBatAvg[k]=allBat.length?allBat.reduce((s,r)=>s+(r[k]||0),0)/allBat.length:0;
+      gradeBatAvg[k]=gradeBat.length?gradeBat.reduce((s,r)=>s+(r[k]||0),0)/gradeBat.length:0;
+    });
+    // calc stats averages
+    const teamCalcs=allBat.map(r=>calcBat(r));
+    const gradeCalcs=gradeBat.map(r=>calcBat(r));
+    ['avg','obp','slg','ops'].forEach(k=>{
+      const tv=teamCalcs.filter(c=>c[k]!=null);
+      teamBatAvg[k]=tv.length?tv.reduce((s,c)=>s+c[k],0)/tv.length:0;
+      const gv=gradeCalcs.filter(c=>c[k]!=null);
+      gradeBatAvg[k]=gv.length?gv.reduce((s,c)=>s+c[k],0)/gv.length:0;
+    });
+  }
+
+  let html=`<div class="pm-header">
+    <div><span class="pm-name">${name}</span><span class="pm-number">#${num}</span></div>
+    <button class="pm-close" onclick="closePlayerModal()">×</button>
+  </div>
+  <div class="pm-legend">
+    <div class="pm-legend-item"><div class="pm-legend-dot" style="background:#e94560"></div>本人</div>
+    <div class="pm-legend-item"><div class="pm-legend-dot" style="background:rgba(255,255,255,.25)"></div>チーム平均</div>
+    <div class="pm-legend-item"><div class="pm-legend-dot" style="background:rgba(33,150,243,.5)"></div>${getGradeLabel(num)}平均</div>
+  </div>`;
+
+  if(bat){
+    const ps=calcBat(bat);
+    const compare=[
+      {label:'打率',pv:ps.avg,tv:teamBatAvg.avg,gv:gradeBatAvg.avg,max:0.5,fmt:v=>fmtRate(v)},
+      {label:'OPS',pv:ps.ops,tv:teamBatAvg.ops,gv:gradeBatAvg.ops,max:1.2,fmt:v=>v!=null?v.toFixed(3):'---'},
+      {label:'安打',pv:bat.h,tv:teamBatAvg.h,gv:gradeBatAvg.h,max:Math.max(bat.h,teamBatAvg.h,gradeBatAvg.h,1)*1.3,fmt:v=>Math.round(v)},
+      {label:'打点',pv:bat.rbi,tv:teamBatAvg.rbi,gv:gradeBatAvg.rbi,max:Math.max(bat.rbi,teamBatAvg.rbi,gradeBatAvg.rbi,1)*1.3,fmt:v=>Math.round(v)},
+      {label:'四球',pv:bat.bb,tv:teamBatAvg.bb,gv:gradeBatAvg.bb,max:Math.max(bat.bb,teamBatAvg.bb,gradeBatAvg.bb,1)*1.3,fmt:v=>Math.round(v)},
+      {label:'盗塁',pv:bat.sb,tv:teamBatAvg.sb,gv:gradeBatAvg.sb,max:Math.max(bat.sb,teamBatAvg.sb,gradeBatAvg.sb,1)*1.3,fmt:v=>Math.round(v)},
+      {label:'三振',pv:bat.so,tv:teamBatAvg.so,gv:gradeBatAvg.so,max:Math.max(bat.so,teamBatAvg.so,gradeBatAvg.so,1)*1.3,fmt:v=>Math.round(v)},
+    ];
+    html+=`<div class="pm-section"><div class="pm-section-title">打撃成績</div>`;
+    compare.forEach(c=>{
+      if(c.pv==null)return;
+      const pw=Math.max(0,Math.min(100,(c.pv/c.max)*100));
+      const tw=Math.max(0,Math.min(100,(c.tv/c.max)*100));
+      const gw=Math.max(0,Math.min(100,(c.gv/c.max)*100));
+      html+=`<div class="pm-bar-row">
+        <div class="pm-bar-label">${c.label}</div>
+        <div class="pm-bar-wrap">
+          <div class="pm-bar grade" style="width:${gw}%"></div>
+          <div class="pm-bar team" style="width:${tw}%"></div>
+          <div class="pm-bar player" style="width:${pw}%"></div>
+        </div>
+        <div class="pm-bar-val">${c.fmt(c.pv)}</div>
+      </div>`;
+    });
+    html+=`</div>`;
+  }
+
+  if(pit){
+    const pps=calcPit(pit);
+    const allPit=data.pitching.filter(r=>(r.g||0)>0);
+    const gradePit=allPit.filter(r=>getGrade(r.number)===grade);
+    const teamPitAvg={},gradePitAvg={};
+    ['k','er','bba','ha'].forEach(k=>{
+      teamPitAvg[k]=allPit.length?allPit.reduce((s,r)=>s+(r[k]||0),0)/allPit.length:0;
+      gradePitAvg[k]=gradePit.length?gradePit.reduce((s,r)=>s+(r[k]||0),0)/gradePit.length:0;
+    });
+    const tcalcs=allPit.map(r=>calcPit(r)).filter(c=>c.era!=null);
+    const gcalcs=gradePit.map(r=>calcPit(r)).filter(c=>c.era!=null);
+    teamPitAvg.era=tcalcs.length?tcalcs.reduce((s,c)=>s+c.era,0)/tcalcs.length:0;
+    gradePitAvg.era=gcalcs.length?gcalcs.reduce((s,c)=>s+c.era,0)/gcalcs.length:0;
+    teamPitAvg.whip=tcalcs.length?tcalcs.reduce((s,c)=>s+c.whip,0)/tcalcs.length:0;
+    gradePitAvg.whip=gcalcs.length?gcalcs.reduce((s,c)=>s+c.whip,0)/gcalcs.length:0;
+
+    const pitCompare=[
+      {label:'防御率',pv:pps.era,tv:teamPitAvg.era,gv:gradePitAvg.era,max:Math.max(pps.era||0,teamPitAvg.era,gradePitAvg.era,1)*1.3,fmt:v=>v!=null?v.toFixed(2):'---'},
+      {label:'WHIP',pv:pps.whip,tv:teamPitAvg.whip,gv:gradePitAvg.whip,max:Math.max(pps.whip||0,teamPitAvg.whip,gradePitAvg.whip,1)*1.3,fmt:v=>v!=null?v.toFixed(2):'---'},
+      {label:'奪三振',pv:pit.k,tv:teamPitAvg.k,gv:gradePitAvg.k,max:Math.max(pit.k,teamPitAvg.k,gradePitAvg.k,1)*1.3,fmt:v=>Math.round(v)},
+    ];
+    html+=`<div class="pm-section"><div class="pm-section-title">投手成績</div>`;
+    pitCompare.forEach(c=>{
+      if(c.pv==null)return;
+      const pw=Math.max(0,Math.min(100,(c.pv/c.max)*100));
+      const tw=Math.max(0,Math.min(100,(c.tv/c.max)*100));
+      const gw=Math.max(0,Math.min(100,(c.gv/c.max)*100));
+      html+=`<div class="pm-bar-row">
+        <div class="pm-bar-label">${c.label}</div>
+        <div class="pm-bar-wrap">
+          <div class="pm-bar grade" style="width:${gw}%"></div>
+          <div class="pm-bar team" style="width:${tw}%"></div>
+          <div class="pm-bar player" style="width:${pw}%"></div>
+        </div>
+        <div class="pm-bar-val">${c.fmt(c.pv)}</div>
+      </div>`;
+    });
+    html+=`</div>`;
+  }
+
+  document.getElementById('playerModalContent').innerHTML=html;
+  document.getElementById('playerModal').classList.add('show');
+}
+function closePlayerModal(){document.getElementById('playerModal').classList.remove('show');}
 
 // ========== 初期化 ==========
 window.addEventListener('load',()=>{
