@@ -1150,9 +1150,58 @@ function renderHead(tt){
   tr.innerHTML=isTotal()?'':'<th style="width:36px"></th>';
   cols.forEach(c=>{const th=document.createElement('th');th.textContent=c.label;if(c.css)th.classList.add(c.css);tr.appendChild(th);});
 }
+// 平均より上=緑、下=赤にするキー (higher=good / lower=good)
+const HIGHER_GOOD_BAT = ['h','h2b','h3b','hr','rbi','bb','sb','hbp','sac','sf'];
+const LOWER_GOOD_BAT = ['so'];
+const HIGHER_GOOD_BAT_CALC = ['avg','obp','slg','ops'];
+const HIGHER_GOOD_PIT = ['g','w','sv','k'];
+const LOWER_GOOD_PIT = ['l','ha','hra','bba','er'];
+const LOWER_GOOD_PIT_CALC = ['era','whip'];
+const HIGHER_GOOD_PIT_CALC = ['k9'];
+
+function calcTeamAvg(data,tt){
+  const avg={};
+  if(!data.length)return avg;
+  const cols=tt==='batting'?BATTING_COLS:tt==='pitching'?PITCHING_COLS:FIELDING_COLS;
+  cols.forEach(col=>{
+    if(col.type==='text')return;
+    if(col.type==='calc'){
+      const vals=data.map(r=>{const s=tt==='batting'?calcBat(r):tt==='pitching'?calcPit(r):{};return s[col.key];}).filter(v=>v!=null&&!isNaN(v)&&isFinite(v));
+      avg[col.key]=vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:null;
+    } else if(col.type==='ip'){
+      const vals=data.map(r=>parseIP(r[col.key]||0));
+      avg[col.key]=vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:0;
+    } else {
+      avg[col.key]=data.reduce((s,r)=>s+(r[col.key]||0),0)/data.length;
+    }
+  });
+  return avg;
+}
+
+function getCompareColor(key,val,teamAvg,tt){
+  if(teamAvg==null||val==null||isNaN(val)||!isFinite(val))return '';
+  let isHigherGood=false,isLowerGood=false;
+  if(tt==='batting'){
+    if(HIGHER_GOOD_BAT.includes(key)||HIGHER_GOOD_BAT_CALC.includes(key))isHigherGood=true;
+    if(LOWER_GOOD_BAT.includes(key))isLowerGood=true;
+  } else if(tt==='pitching'){
+    if(HIGHER_GOOD_PIT.includes(key)||HIGHER_GOOD_PIT_CALC.includes(key))isHigherGood=true;
+    if(LOWER_GOOD_PIT.includes(key)||LOWER_GOOD_PIT_CALC.includes(key))isLowerGood=true;
+  } else if(tt==='fielding'){
+    if(key==='e')isLowerGood=true;
+  }
+  if(!isHigherGood&&!isLowerGood)return '';
+  if(val===teamAvg)return '';
+  const above=val>teamAvg;
+  if((isHigherGood&&above)||(isLowerGood&&!above))return 'rgba(76,175,80,.25)';
+  if((isHigherGood&&!above)||(isLowerGood&&above))return 'rgba(233,69,96,.18)';
+  return '';
+}
+
 function renderTable(tt){
   const data=[...getCurrentData()[tt]].sort((a,b)=>(parseInt(a.number)||0)-(parseInt(b.number)||0)),cols=tt==='batting'?BATTING_COLS:tt==='pitching'?PITCHING_COLS:FIELDING_COLS;
   const tbody=document.getElementById(tt+'Body'),total=isTotal();
+  const teamAvg=total?calcTeamAvg(data,tt):{};
   tbody.innerHTML='';
   data.forEach(row=>{
     const tr=document.createElement('tr');
@@ -1162,8 +1211,15 @@ function renderTable(tt){
     cols.forEach(col=>{
       const td=document.createElement('td');
       if(col.css)td.classList.add(col.css);
-      if(col.type==='calc'){td.classList.add('col-calc');td.textContent=fmtCalc(col.key,stats[col.key]);}
-      else if(total){td.style.color='#555';td.textContent=col.type==='text'?(row[col.key]||''):(row[col.key]||0);if(col.key==='name'){td.style.cursor='pointer';td.style.textDecoration='underline';td.onclick=()=>openPlayerModal(row.name);}}
+      if(col.type==='calc'){
+        td.classList.add('col-calc');td.textContent=fmtCalc(col.key,stats[col.key]);
+        if(total){const bg=getCompareColor(col.key,stats[col.key],teamAvg[col.key],tt);if(bg)td.style.background=bg;}
+      }
+      else if(total){
+        td.style.color='#555';td.textContent=col.type==='text'?(row[col.key]||''):(row[col.key]||0);
+        if(col.key==='name'){td.style.cursor='pointer';td.style.textDecoration='underline';td.onclick=()=>openPlayerModal(row.name);}
+        else if(col.type==='num'){const bg=getCompareColor(col.key,row[col.key]||0,teamAvg[col.key],tt);if(bg)td.style.background=bg;}
+      }
       else{td.classList.add('editable');td.dataset.rowId=row.id;td.dataset.colKey=col.key;td.dataset.tableType=tt;td.textContent=col.type==='text'?(row[col.key]||''):(row[col.key]||0);td.onclick=()=>startEdit(td,tt,row.id,col);}
       tr.appendChild(td);
     });
