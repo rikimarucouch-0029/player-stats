@@ -1412,7 +1412,7 @@ function renderRanking(){
         <div class="rank-bar-row">
           <div class="rank-bar-wrap">
             <div class="rank-bar ${barCls}" style="width:${pct}%"></div>
-            <div class="rank-avg-line" style="left:${avgPct}%"><span class="rank-avg-label">平均</span></div>
+            <div class="rank-avg-line" style="left:${avgPct}%"></div>
           </div>
           <div class="rank-val">${cat.fmt(it.val)}</div>
         </div>
@@ -1459,8 +1459,8 @@ function openPlayerModal(name){
       <div class="pm-bar-label">${label}</div>
       <div class="rank-bar-wrap">
         <div class="rank-bar ${barCls}" style="width:${pPct}%"></div>
-        <div class="rank-avg-line" style="left:${tPct}%"><span class="rank-avg-label">チーム</span></div>
-        <div class="rank-avg-line" style="left:${gPct}%;background:#2196f3"><span class="rank-avg-label" style="color:#2196f3">${getGradeLabel(num)}</span></div>
+        <div class="rank-avg-line" style="left:${tPct}%"></div>
+        <div class="rank-avg-line" style="left:${gPct}%;background:#2196f3"></div>
       </div>
       <div class="pm-bar-val">${fmt(pv)}</div>
     </div>`;
