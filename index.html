@@ -1448,17 +1448,43 @@ function openPlayerModal(name){
   const num=(bat||pit).number;
   const grade=getGrade(num);
 
-  // チーム平均・学年平均を計算
-  const teamBatAvg={},gradeBatAvg={};
-  const batKeys=['ab','h','h2b','h3b','hr','rbi','bb','hbp','so','sb'];
+  function mkBar(label,pv,tv,gv,maxOverride,fmt,lower){
+    if(pv==null||isNaN(pv)||!isFinite(pv))return '';
+    const mx=maxOverride||Math.max(pv,tv,gv,0.01)*1.3;
+    const pPct=Math.max(0,Math.min(100,(pv/mx)*100));
+    const tPct=Math.max(0,Math.min(100,(tv/mx)*100));
+    const gPct=Math.max(0,Math.min(100,(gv/mx)*100));
+    const barCls=lower?(pv<tv?'above':pv>tv?'below':'equal'):(pv>tv?'above':pv<tv?'below':'equal');
+    return `<div class="pm-bar-row">
+      <div class="pm-bar-label">${label}</div>
+      <div class="rank-bar-wrap">
+        <div class="rank-bar ${barCls}" style="width:${pPct}%"></div>
+        <div class="rank-avg-line" style="left:${tPct}%"><span class="rank-avg-label">チーム</span></div>
+        <div class="rank-avg-line" style="left:${gPct}%;background:#2196f3"><span class="rank-avg-label" style="color:#2196f3">${getGradeLabel(num)}</span></div>
+      </div>
+      <div class="pm-bar-val">${fmt(pv)}</div>
+    </div>`;
+  }
+
+  let html=`<div class="pm-header">
+    <div><span class="pm-name">${name}</span><span class="pm-number">#${num}</span></div>
+    <button class="pm-close" onclick="closePlayerModal()">×</button>
+  </div>
+  <div class="pm-legend">
+    <div class="pm-legend-item"><div class="pm-legend-dot" style="background:#4caf50"></div>平均以上</div>
+    <div class="pm-legend-item"><div class="pm-legend-dot" style="background:#e94560"></div>平均以下</div>
+    <div class="pm-legend-item"><div class="pm-legend-dot" style="background:#ffd700;width:3px;border-radius:1px"></div>チーム平均</div>
+    <div class="pm-legend-item"><div class="pm-legend-dot" style="background:#2196f3;width:3px;border-radius:1px"></div>${getGradeLabel(num)}平均</div>
+  </div>`;
+
   if(bat){
     const allBat=data.batting.filter(r=>(r.ab||0)>0);
     const gradeBat=allBat.filter(r=>getGrade(r.number)===grade);
-    batKeys.forEach(k=>{
+    const teamBatAvg={},gradeBatAvg={};
+    ['h','h2b','h3b','hr','rbi','bb','hbp','so','sb'].forEach(k=>{
       teamBatAvg[k]=allBat.length?allBat.reduce((s,r)=>s+(r[k]||0),0)/allBat.length:0;
       gradeBatAvg[k]=gradeBat.length?gradeBat.reduce((s,r)=>s+(r[k]||0),0)/gradeBat.length:0;
     });
-    // calc stats averages
     const teamCalcs=allBat.map(r=>calcBat(r));
     const gradeCalcs=gradeBat.map(r=>calcBat(r));
     ['avg','obp','slg','ops'].forEach(k=>{
@@ -1467,45 +1493,15 @@ function openPlayerModal(name){
       const gv=gradeCalcs.filter(c=>c[k]!=null);
       gradeBatAvg[k]=gv.length?gv.reduce((s,c)=>s+c[k],0)/gv.length:0;
     });
-  }
-
-  let html=`<div class="pm-header">
-    <div><span class="pm-name">${name}</span><span class="pm-number">#${num}</span></div>
-    <button class="pm-close" onclick="closePlayerModal()">×</button>
-  </div>
-  <div class="pm-legend">
-    <div class="pm-legend-item"><div class="pm-legend-dot" style="background:#e94560"></div>本人</div>
-    <div class="pm-legend-item"><div class="pm-legend-dot" style="background:rgba(255,255,255,.25)"></div>チーム平均</div>
-    <div class="pm-legend-item"><div class="pm-legend-dot" style="background:rgba(33,150,243,.5)"></div>${getGradeLabel(num)}平均</div>
-  </div>`;
-
-  if(bat){
     const ps=calcBat(bat);
-    const compare=[
-      {label:'打率',pv:ps.avg,tv:teamBatAvg.avg,gv:gradeBatAvg.avg,max:0.5,fmt:v=>fmtRate(v)},
-      {label:'OPS',pv:ps.ops,tv:teamBatAvg.ops,gv:gradeBatAvg.ops,max:1.2,fmt:v=>v!=null?v.toFixed(3):'---'},
-      {label:'安打',pv:bat.h,tv:teamBatAvg.h,gv:gradeBatAvg.h,max:Math.max(bat.h,teamBatAvg.h,gradeBatAvg.h,1)*1.3,fmt:v=>Math.round(v)},
-      {label:'打点',pv:bat.rbi,tv:teamBatAvg.rbi,gv:gradeBatAvg.rbi,max:Math.max(bat.rbi,teamBatAvg.rbi,gradeBatAvg.rbi,1)*1.3,fmt:v=>Math.round(v)},
-      {label:'四球',pv:bat.bb,tv:teamBatAvg.bb,gv:gradeBatAvg.bb,max:Math.max(bat.bb,teamBatAvg.bb,gradeBatAvg.bb,1)*1.3,fmt:v=>Math.round(v)},
-      {label:'盗塁',pv:bat.sb,tv:teamBatAvg.sb,gv:gradeBatAvg.sb,max:Math.max(bat.sb,teamBatAvg.sb,gradeBatAvg.sb,1)*1.3,fmt:v=>Math.round(v)},
-      {label:'三振',pv:bat.so,tv:teamBatAvg.so,gv:gradeBatAvg.so,max:Math.max(bat.so,teamBatAvg.so,gradeBatAvg.so,1)*1.3,fmt:v=>Math.round(v)},
-    ];
     html+=`<div class="pm-section"><div class="pm-section-title">打撃成績</div>`;
-    compare.forEach(c=>{
-      if(c.pv==null)return;
-      const pw=Math.max(0,Math.min(100,(c.pv/c.max)*100));
-      const tw=Math.max(0,Math.min(100,(c.tv/c.max)*100));
-      const gw=Math.max(0,Math.min(100,(c.gv/c.max)*100));
-      html+=`<div class="pm-bar-row">
-        <div class="pm-bar-label">${c.label}</div>
-        <div class="pm-bar-wrap">
-          <div class="pm-bar grade" style="width:${gw}%"></div>
-          <div class="pm-bar team" style="width:${tw}%"></div>
-          <div class="pm-bar player" style="width:${pw}%"></div>
-        </div>
-        <div class="pm-bar-val">${c.fmt(c.pv)}</div>
-      </div>`;
-    });
+    html+=mkBar('打率',ps.avg,teamBatAvg.avg,gradeBatAvg.avg,0.5,v=>fmtRate(v),false);
+    html+=mkBar('OPS',ps.ops,teamBatAvg.ops,gradeBatAvg.ops,1.2,v=>v.toFixed(3),false);
+    html+=mkBar('安打',bat.h,teamBatAvg.h,gradeBatAvg.h,0,v=>Math.round(v),false);
+    html+=mkBar('打点',bat.rbi,teamBatAvg.rbi,gradeBatAvg.rbi,0,v=>Math.round(v),false);
+    html+=mkBar('四球',bat.bb,teamBatAvg.bb,gradeBatAvg.bb,0,v=>Math.round(v),false);
+    html+=mkBar('盗塁',bat.sb,teamBatAvg.sb,gradeBatAvg.sb,0,v=>Math.round(v),false);
+    html+=mkBar('三振',bat.so,teamBatAvg.so,gradeBatAvg.so,0,v=>Math.round(v),true);
     html+=`</div>`;
   }
 
@@ -1525,27 +1521,10 @@ function openPlayerModal(name){
     teamPitAvg.whip=tcalcs.length?tcalcs.reduce((s,c)=>s+c.whip,0)/tcalcs.length:0;
     gradePitAvg.whip=gcalcs.length?gcalcs.reduce((s,c)=>s+c.whip,0)/gcalcs.length:0;
 
-    const pitCompare=[
-      {label:'防御率',pv:pps.era,tv:teamPitAvg.era,gv:gradePitAvg.era,max:Math.max(pps.era||0,teamPitAvg.era,gradePitAvg.era,1)*1.3,fmt:v=>v!=null?v.toFixed(2):'---'},
-      {label:'WHIP',pv:pps.whip,tv:teamPitAvg.whip,gv:gradePitAvg.whip,max:Math.max(pps.whip||0,teamPitAvg.whip,gradePitAvg.whip,1)*1.3,fmt:v=>v!=null?v.toFixed(2):'---'},
-      {label:'奪三振',pv:pit.k,tv:teamPitAvg.k,gv:gradePitAvg.k,max:Math.max(pit.k,teamPitAvg.k,gradePitAvg.k,1)*1.3,fmt:v=>Math.round(v)},
-    ];
     html+=`<div class="pm-section"><div class="pm-section-title">投手成績</div>`;
-    pitCompare.forEach(c=>{
-      if(c.pv==null)return;
-      const pw=Math.max(0,Math.min(100,(c.pv/c.max)*100));
-      const tw=Math.max(0,Math.min(100,(c.tv/c.max)*100));
-      const gw=Math.max(0,Math.min(100,(c.gv/c.max)*100));
-      html+=`<div class="pm-bar-row">
-        <div class="pm-bar-label">${c.label}</div>
-        <div class="pm-bar-wrap">
-          <div class="pm-bar grade" style="width:${gw}%"></div>
-          <div class="pm-bar team" style="width:${tw}%"></div>
-          <div class="pm-bar player" style="width:${pw}%"></div>
-        </div>
-        <div class="pm-bar-val">${c.fmt(c.pv)}</div>
-      </div>`;
-    });
+    html+=mkBar('防御率',pps.era,teamPitAvg.era,gradePitAvg.era,0,v=>v.toFixed(2),true);
+    html+=mkBar('WHIP',pps.whip,teamPitAvg.whip,gradePitAvg.whip,0,v=>v.toFixed(2),true);
+    html+=mkBar('奪三振',pit.k,teamPitAvg.k,gradePitAvg.k,0,v=>Math.round(v),false);
     html+=`</div>`;
   }
 
