@@ -973,14 +973,25 @@ function loadData() {
     const s = JSON.parse(localStorage.getItem(SK));
     if (s && s.leagues) { leagues = s.leagues; activeLeague = s.activeLeague; }
   } catch(e) {}
-  // INITIAL_STATSに存在して、まだ未作成のリーグを自動追加
+  // INITIAL_STATSに存在するリーグを自動追加・マージ
   Object.entries(INITIAL_STATS).forEach(([name, data]) => {
-    if (!leagues.find(l => l.name === name)) {
+    const existing = leagues.find(l => l.name === name);
+    if (!existing) {
       const lg = mkLeague(name);
       if (data.batting)  lg.batting  = data.batting.map(r  => ({id:genId(), ...r}));
       if (data.pitching) lg.pitching = data.pitching.map(r => ({id:genId(), ...r}));
       if (data.fielding) lg.fielding = data.fielding.map(r => ({id:genId(), ...r}));
       leagues.push(lg);
+    } else {
+      // 既存リーグに新しい選手をマージ
+      ['batting','pitching','fielding'].forEach(cat => {
+        if (!data[cat]) return;
+        if (!existing[cat]) existing[cat] = [];
+        data[cat].forEach(src => {
+          const dup = existing[cat].find(e => e.name === src.name && e.number === src.number);
+          if (!dup) existing[cat].push({id:genId(), ...src});
+        });
+      });
     }
   });
   if (!leagues.length) {
