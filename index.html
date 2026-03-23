@@ -986,17 +986,23 @@ function loadData() {
       if (data.fielding) lg.fielding = data.fielding.map(r => ({id:genId(), ...r}));
       leagues.push(lg);
     } else {
-      // 既存リーグに新しい選手をマージ
-      let merged = false;
+      // INITIAL_STATSを正として既存データを同期
+      let changed = false;
       ['batting','pitching','fielding'].forEach(cat => {
         if (!data[cat]) return;
         if (!existing[cat]) existing[cat] = [];
         data[cat].forEach(src => {
           const dup = existing[cat].find(e => e.name === src.name && e.number === src.number);
-          if (!dup) { existing[cat].push({id:genId(), ...src}); merged = true; }
+          if (!dup) {
+            existing[cat].push({id:genId(), ...src}); changed = true;
+          } else {
+            Object.keys(src).forEach(k => {
+              if (k !== 'name' && k !== 'number' && dup[k] !== src[k]) { dup[k] = src[k]; changed = true; }
+            });
+          }
         });
       });
-      if (merged) saveData();
+      if (changed) saveData();
     }
   });
   if (!leagues.length) {
