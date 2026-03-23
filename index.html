@@ -984,14 +984,16 @@ function loadData() {
       leagues.push(lg);
     } else {
       // 既存リーグに新しい選手をマージ
+      let merged = false;
       ['batting','pitching','fielding'].forEach(cat => {
         if (!data[cat]) return;
         if (!existing[cat]) existing[cat] = [];
         data[cat].forEach(src => {
           const dup = existing[cat].find(e => e.name === src.name && e.number === src.number);
-          if (!dup) existing[cat].push({id:genId(), ...src});
+          if (!dup) { existing[cat].push({id:genId(), ...src}); merged = true; }
         });
       });
+      if (merged) saveData();
     }
   });
   if (!leagues.length) {
