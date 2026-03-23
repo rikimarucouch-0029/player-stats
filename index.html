@@ -1039,6 +1039,7 @@ function isTotal() { return activeLeague===TOTAL_ID; }
 
 function parseIP(v){const p=String(v).split('.');return(parseInt(p[0])||0)+(p.length>1?(parseInt(p[1][0])||0)/3:0);}
 function sanitizeIP(v){const s=String(v).trim();if(!s||s==='0')return 0;const p=s.split('.');const w=Math.max(0,parseInt(p[0])||0);if(p.length<2)return w;let f=parseInt(p[1][0])||0;if(f>2)f=2;return parseFloat(w+'.'+f);}
+function fmtIP(v){const p=String(v).split('.');const w=parseInt(p[0])||0;const f=p.length>1?(parseInt(p[1][0])||0):0;if(w===0&&f===0)return'0';if(f===0)return String(w);if(w===0)return f+'/3';return w+' '+f+'/3';}
 
 function calcBat(r){
   const ab=r.ab||0,h=r.h||0,h2b=r.h2b||0,h3b=r.h3b||0,hr=r.hr||0,bb=r.bb||0,hbp=r.hbp||0,sf=r.sf||0;
@@ -1255,7 +1256,7 @@ function renderTable(tt){
       const td=document.createElement('td');
       if(col.css)td.classList.add(col.css);
       if(col.type==='calc'){td.classList.add('col-calc');td.textContent=fmtCalc(col.key,stats[col.key]);}
-      else{td.textContent=col.type==='text'?(row[col.key]||''):(row[col.key]||0);if(col.key==='name'){td.style.cursor='pointer';td.style.textDecoration='underline';td.onclick=()=>openPlayerModal(row.name);}}
+      else{td.textContent=col.type==='text'?(row[col.key]||''):col.type==='ip'?fmtIP(row[col.key]||0):(row[col.key]||0);if(col.key==='name'){td.style.cursor='pointer';td.style.textDecoration='underline';td.onclick=()=>openPlayerModal(row.name);}}
       tr.appendChild(td);
     });
     tbody.appendChild(tr);
