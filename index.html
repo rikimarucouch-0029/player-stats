@@ -650,6 +650,7 @@ td.col-name.editing input { text-align: left; padding-left: 8px; }
 
     <!-- ランキングページ -->
     <div class="page" id="pageRanking">
+      <div class="ranking-cats" id="rankGradeFilter"></div>
       <div class="ranking-cats" id="rankingCats"></div>
       <div class="rank-list" id="rankList"></div>
     </div>
@@ -1481,8 +1482,21 @@ const RANK_CATS = [
   {key:'whip',label:'WHIP',type:'pit',fn:r=>{const s=calcPit(r);return s.whip;},fmt:v=>v!=null?v.toFixed(2):'---',min:1,minKey:'g',lower:true},
 ];
 let activeRankCat = 'avg';
+let activeRankGrade = 'all';
 
 function renderRanking(){
+  // 学年フィルター
+  const gradeEl=document.getElementById('rankGradeFilter');
+  gradeEl.innerHTML='';
+  const grades=[{key:'all',label:'全体'},{key:'3年',label:'3年'},{key:'2年',label:'2年'},{key:'1年',label:'1年'}];
+  grades.forEach(g=>{
+    const b=document.createElement('button');
+    b.className='rank-cat'+(activeRankGrade===g.key?' active':'');
+    b.textContent=g.label;
+    b.onclick=()=>{activeRankGrade=g.key;renderRanking();};
+    gradeEl.appendChild(b);
+  });
+  // カテゴリボタン
   const catsEl=document.getElementById('rankingCats');
   catsEl.innerHTML='';
   RANK_CATS.forEach(c=>{
@@ -1495,7 +1509,8 @@ function renderRanking(){
   const cat=RANK_CATS.find(c=>c.key===activeRankCat);
   if(!cat)return;
   const data=getTotalData();
-  const src=cat.type==='bat'?data.batting:data.pitching;
+  let src=cat.type==='bat'?data.batting:data.pitching;
+  if(activeRankGrade!=='all'){src=src.filter(r=>getGrade(r.number)===activeRankGrade);}
   let items=src.map(r=>({name:r.name,number:r.number,val:cat.fn(r),raw:r}))
     .filter(x=>x.val!=null&&!isNaN(x.val)&&isFinite(x.val));
   if(cat.min&&cat.minKey){items=items.filter(x=>(x.raw[cat.minKey]||0)>=cat.min);}
